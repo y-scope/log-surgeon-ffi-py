@@ -9,7 +9,8 @@ class LogEvent:
         return self._log_message
 
     def __getitem__(self, variable_name: str) -> str | list[str | int | float]:
-        return self._var_dict[variable_name]
+        val = self._var_dict[variable_name]
+        return val[0] if len(val) == 1 else val
 
     def __str__(self) -> str:
         return self.get_log_message()
