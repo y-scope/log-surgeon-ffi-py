@@ -269,9 +269,35 @@ auto PyReaderParser::init(PyObject* py_input_stream, char const* schema_content)
     // TODO use try catch + throw a py exception around log surgeon code
     // TODO review PyErr and exceptions on returns
 
-    auto schema{log_surgeon::SchemaParser::try_schema_string(schema_content)};
-    auto parser{std::make_unique<log_surgeon::ReaderParser>(std::move(schema))};
+    m_parser = std::make_unique<log_surgeon::ReaderParser>(
+            log_surgeon::SchemaParser::try_schema_string(schema_content)
+    );
 
+    return reset_input_stream(py_input_stream);
+
+    // TODO: add error handling code?
+    //     if (deserializer_result.has_error()) {
+    //         PyErr_Format(
+    //                 PyExc_RuntimeError,
+    //                 get_c_str_from_constexpr_string_view(cDeserializerCreateErrorFormatStr),
+    //                 deserializer_result.error().message().c_str()
+    //         );
+    //         return false;
+    //     }
+    //     m_deserializer = new (std::nothrow)
+    //             clp::ffi::ir_stream::Deserializer<PyReaderParser::IrUnitHandler>{
+    //                     std::move(deserializer_result.value())
+    //             };
+    //     if (nullptr == m_deserializer) {
+    //         PyErr_SetString(
+    //                 PyExc_RuntimeError,
+    //                 get_c_str_from_constexpr_string_view(cOutOfMemoryError)
+    //         );
+    //         return false;
+    //     }
+}
+
+auto PyReaderParser::reset_input_stream(PyObject* py_input_stream) -> bool {
     if (0 == PyObject_HasAttrString(py_input_stream, "read")) {
         PyErr_SetString(PyExc_TypeError, "input_stream must have a .read() method");
         return false;
@@ -340,35 +366,8 @@ auto PyReaderParser::init(PyObject* py_input_stream, char const* schema_content)
                 return log_surgeon::ErrorCode::Success;
             }
     };
-    parser->reset_and_set_reader(reader);
-
-    m_parser = std::move(parser);
-
-    // TODO: add error handling code?
-    //     if (deserializer_result.has_error()) {
-    //         PyErr_Format(
-    //                 PyExc_RuntimeError,
-    //                 get_c_str_from_constexpr_string_view(cDeserializerCreateErrorFormatStr),
-    //                 deserializer_result.error().message().c_str()
-    //         );
-    //         return false;
-    //     }
-    //     m_deserializer = new (std::nothrow)
-    //             clp::ffi::ir_stream::Deserializer<PyReaderParser::IrUnitHandler>{
-    //                     std::move(deserializer_result.value())
-    //             };
-    //     if (nullptr == m_deserializer) {
-    //         PyErr_SetString(
-    //                 PyExc_RuntimeError,
-    //                 get_c_str_from_constexpr_string_view(cOutOfMemoryError)
-    //         );
-    //         return false;
-    //     }
+    m_parser->reset_and_set_reader(reader);
     return true;
-}
-
-auto PyReaderParser::reset_input_stream(PyObject* py_input_stream) -> bool {
-    return false;
 }
 
 auto PyReaderParser::dealloc() -> void {
