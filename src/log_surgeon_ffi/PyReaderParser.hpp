@@ -69,7 +69,17 @@ public:
      * @return true on success.
      * @return false on failure with the relevant Python exception and error set.
      */
-    [[nodiscard]] auto init(PyObject* input_stream, char const* schema_content) -> bool;
+    [[nodiscard]] auto init(PyObject* py_input_stream, char const* schema_content) -> bool;
+
+    /**
+     * Deserializes the next key value pair log event from the IR stream.
+     * @return A new reference to a `KeyValuePairLogEvent` object representing the
+     * deserialized log event on success.
+     * @return A new reference to `Py_None` when the end of IR stream is reached.
+     * @return nullptr on failure with the relevant Python exception and error
+     * set.
+     */
+    [[nodiscard]] auto reset_input_stream(PyObject* py_input_stream) -> bool;
 
     /**
      * Deserializes the next key value pair log event from the IR stream.
@@ -91,37 +101,8 @@ public:
      */
     [[nodiscard]] auto parse_next_log_event() -> PyObject*;
 
-    /**
-     * @return A pointer to the user-defined stream-level metadata, deserialized
-     * from the stream's preamble, if defined.
-     * @return std::nullptr if the user-defined stream-level metadata is not
-     * defined.
-     */
-    // [[nodiscard]] auto get_user_defined_metadata() const -> nlohmann::json const*;
-
 private:
     static inline PyObjectStaticPtr<PyTypeObject> m_py_type{nullptr};
-
-    /**
-     * Implements `IrUnitHandler::EndOfStreamHandle`.
-     * This handle function sets the underlying `m_end_of_stream_reached` to true.
-     * @return IRErrorCode::IRErrorCode_Success on success.
-     */
-    // [[maybe_unused]] auto handle_end_of_stream() -> clp::ffi::ir_stream::IRErrorCode {
-    //     m_end_of_stream_reached = true;
-    //     return clp::ffi::ir_stream::IRErrorCode::IRErrorCode_Success;
-    // }
-
-    /**
-     * Implements `IrUnitHandler::LogEventHandle`.
-     * This handle function sets the underlying `m_deserialized_log_event` with
-     * the given input.
-     * @param kv_log_event
-     * @return IRErrorCode::IRErrorCode_Success on success.
-     *
-     */
-    // [[nodiscard]] auto handle_log_event(clp::ffi::KeyValuePairLogEvent&& log_event)
-    //         -> clp::ffi::ir_stream::IRErrorCode;
 
     PyObject_HEAD;
     PyObject* m_py_input_stream{nullptr};

@@ -52,6 +52,25 @@ LOG_SURGEON_FFI_METHOD auto
 PyReaderParser_init(PyReaderParser* self, PyObject* args, PyObject* keywords) -> int;
 
 /**
+ * Callback of `PyReaderParser`'s `reset_input_stream`.
+ */
+PyDoc_STRVAR(
+        cPyReaderParserResetInputStreamDoc,
+        "reset_input_stream(self)\n"
+        "--\n\n"
+        "Deserializes the next log event from the IR stream.\n\n"
+        ":return:\n"
+        "     - The next deserialized log event from the IR stream.\n"
+        "     - None if there are no more log events in the stream.\n"
+        ":rtype: :class:`KeyValuePairLogEvent` | None\n"
+        ":raises: Appropriate exceptions with detailed information on any "
+        "encountered failure.\n"
+);
+LOG_SURGEON_FFI_METHOD auto
+PyReaderParser_reset_input_stream(PyReaderParser* self, PyObject* args, PyObject* keywords)
+        -> PyObject*;
+
+/**
  * Callback of `PyReaderParser`'s `done`.
  */
 PyDoc_STRVAR(
@@ -86,25 +105,6 @@ PyDoc_STRVAR(
 LOG_SURGEON_FFI_METHOD auto PyReaderParser_parse_next_log_event(PyReaderParser* self) -> PyObject*;
 
 /**
- * Callback of `PyReaderParser`'s `get_user_defined_metadata`.
- */
-PyDoc_STRVAR(
-        cPyReaderParserGetUserDefinedMetadataDoc,
-        "get_user_defined_metadata(self)\n"
-        "--\n\n"
-        "Gets the user-defined stream-level metadata.\n\n"
-        ":return:\n"
-        "    - The deserialized user-defined stream-level metadata, loaded as a"
-        " dictionary.\n"
-        "    - None if user-defined stream-level metadata was not given in the "
-        "deserialized"
-        " IR stream.\n"
-        ":rtype: dict | None\n"
-);
-LOG_SURGEON_FFI_METHOD auto PyReaderParser_get_user_defined_metadata(PyReaderParser* self)
-        -> PyObject*;
-
-/**
  * Callback of `PyReaderParser`'s deallocator.
  */
 LOG_SURGEON_FFI_METHOD auto PyReaderParser_dealloc(PyReaderParser* self) -> void;
@@ -112,6 +112,11 @@ LOG_SURGEON_FFI_METHOD auto PyReaderParser_dealloc(PyReaderParser* self) -> void
 // NOLINTNEXTLINE(*-avoid-c-arrays,
 // cppcoreguidelines-avoid-non-const-global-variables)
 PyMethodDef PyReaderParser_method_table[]{
+        {"reset_input_stream",
+         py_c_function_cast(PyReaderParser_reset_input_stream),
+         METH_VARARGS | METH_KEYWORDS,
+         static_cast<char const*>(cPyReaderParserResetInputStreamDoc)},
+
         {"done",
          py_c_function_cast(PyReaderParser_done),
          METH_NOARGS,
@@ -121,11 +126,6 @@ PyMethodDef PyReaderParser_method_table[]{
          py_c_function_cast(PyReaderParser_parse_next_log_event),
          METH_NOARGS,
          static_cast<char const*>(cPyReaderParserParseNextLogEventDoc)},
-
-        // {"get_user_defined_metadata",
-        //  py_c_function_cast(PyReaderParser_get_user_defined_metadata),
-        //  METH_NOARGS,
-        //  static_cast<char const*>(cPyReaderParserGetUserDefinedMetadataDoc)},
 
         {nullptr}
 };
@@ -190,6 +190,28 @@ PyReaderParser_init(PyReaderParser* self, PyObject* args, PyObject* keywords) ->
     return 0;
 }
 
+LOG_SURGEON_FFI_METHOD auto
+PyReaderParser_reset_input_stream(PyReaderParser* self, PyObject* args, PyObject* keywords)
+        -> PyObject* {
+    static char keyword_input_stream[]{"input_stream"};
+    static char const* keyword_table[]{static_cast<char*>(keyword_input_stream), nullptr};
+
+    PyObject* py_input_stream{};
+    if (false
+        == static_cast<bool>(PyArg_ParseTupleAndKeywords(
+                args,
+                keywords,
+                "O",
+                const_cast<char**>(static_cast<char const**>(keyword_table)),
+                &py_input_stream
+        )))
+    {
+        return PyBool_FromLong(0);
+    }
+
+    return self->reset_input_stream(py_input_stream) ? PyBool_FromLong(1) : PyBool_FromLong(0);
+}
+
 LOG_SURGEON_FFI_METHOD auto PyReaderParser_done(PyReaderParser* self) -> PyObject* {
     return self->done() ? PyBool_FromLong(1) : PyBool_FromLong(0);
 }
@@ -197,43 +219,6 @@ LOG_SURGEON_FFI_METHOD auto PyReaderParser_done(PyReaderParser* self) -> PyObjec
 LOG_SURGEON_FFI_METHOD auto PyReaderParser_parse_next_log_event(PyReaderParser* self) -> PyObject* {
     return self->parse_next_log_event();
 }
-
-// LOG_SURGEON_FFI_METHOD auto PyReaderParser_get_user_defined_metadata(PyReaderParser* self)
-//         -> PyObject* {
-//     auto const* user_defined_metadata{self->get_user_defined_metadata()};
-//     if (nullptr == user_defined_metadata) {
-//         Py_RETURN_NONE;
-//     }
-
-//     std::string json_str;
-//     try {
-//         json_str = user_defined_metadata->dump();
-//     } catch (nlohmann::json::exception const& ex) {
-//         PyErr_Format(
-//                 PyExc_RuntimeError,
-//                 "Failed to serialize the user-defined stream-level metadata "
-//                 "into a JSON string."
-//                 " Error: %s",
-//                 ex.what()
-//         );
-//         return nullptr;
-//     }
-
-//     PyObjectPtr<PyObject> py_metadata_dict{py_utils_parse_json_str(json_str)};
-//     if (nullptr == py_metadata_dict) {
-//         return nullptr;
-//     }
-//     if (false == static_cast<bool>(PyDict_Check(py_metadata_dict.get()))) {
-//         PyErr_SetString(
-//                 PyExc_TypeError,
-//                 "Failed to convert the user-defined stream-level metadata "
-//                 "into a dictionary."
-//         );
-//         return nullptr;
-//     }
-
-//     return py_metadata_dict.release();
-// }
 
 LOG_SURGEON_FFI_METHOD auto PyReaderParser_dealloc(PyReaderParser* self) -> void {
     self->dealloc();
@@ -380,6 +365,10 @@ auto PyReaderParser::init(PyObject* py_input_stream, char const* schema_content)
     //         return false;
     //     }
     return true;
+}
+
+auto PyReaderParser::reset_input_stream(PyObject* py_input_stream) -> bool {
+    return false;
 }
 
 auto PyReaderParser::dealloc() -> void {
@@ -544,49 +533,4 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
     }
     return py_log_event;
 }
-
-// auto PyReaderParser::get_user_defined_metadata() const -> nlohmann::json const* {
-//     auto const& metadata{m_deserializer->get_metadata()};
-//     std::string const user_defined_metadata_key{
-//             clp::ffi::ir_stream::cProtocol::Metadata::UserDefinedMetadataKey
-//     };
-//     if (false == metadata.contains(user_defined_metadata_key)) {
-//         return nullptr;
-//     }
-//     return &metadata.at(user_defined_metadata_key);
-// }
-
-// auto PyReaderParser::handle_log_event(clp::ffi::KeyValuePairLogEvent&& log_event) ->
-// IRErrorCode
-// {
-//     if (has_unreleased_deserialized_log_event()) {
-//         // This situation may occur if the deserializer methods return an error
-//         // after the last successful call to `handle_log_event`. If the user
-//         // resolves the error and invokes the deserializer methods again, the
-//         // underlying deserialized log event from the previous failed calls remains
-//         // unreleased. To prevent a memory leak, we must free the associated memory
-//         // by clearing the last deserialized log event.
-//         clear_deserialized_log_event();
-//     }
-//     m_deserialized_log_event
-//             = new (std::nothrow) clp::ffi::KeyValuePairLogEvent{std::move(log_event)};
-//     if (nullptr == m_deserialized_log_event) {
-//         // TODO: Set this to a proper error code when user-defined error code is
-//         // supported.
-//         return IRErrorCode::IRErrorCode_Eof;
-//     }
-//     return IRErrorCode::IRErrorCode_Success;
-// }
-
-// auto PyReaderParser::handle_incomplete_stream_error() -> bool {
-//     if (m_allow_incomplete_stream) {
-//         handle_end_of_stream();
-//         return true;
-//     }
-//     PyErr_SetString(
-//             PyReaderParserBuffer::get_py_incomplete_stream_error(),
-//             get_c_str_from_constexpr_string_view(cDeserializerIncompleteIRError)
-//     );
-//     return false;
-// }
 }  // namespace log_surgeon_ffi
