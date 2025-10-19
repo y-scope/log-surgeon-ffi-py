@@ -5,6 +5,7 @@
 #include <object.h>
 
 #include <algorithm>
+#include <iostream>
 #include <log_surgeon/Constants.hpp>
 #include <log_surgeon/Reader.hpp>
 #include <log_surgeon/ReaderParser.hpp>
@@ -19,9 +20,6 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-
-
-#include <iostream>
 
 namespace log_surgeon_ffi {
 namespace {
@@ -241,6 +239,35 @@ LOG_SURGEON_FFI_METHOD auto PyReaderParser_dealloc(PyReaderParser* self) -> void
     self->dealloc();
     Py_TYPE(self)->tp_free(py_reinterpret_cast<PyObject>(self));
 }
+
+auto get_py_token_array(PyObject* py_var_dict, char const* token_name) -> PyObject* {
+    PyObject* py_token_name{PyUnicode_FromString(token_name)};
+    if (nullptr == py_token_name) {
+        std::cerr << "failed token name"
+                     "\n";
+        return nullptr;
+    }
+    PyObject* py_token_array{nullptr};
+    auto contains_token_result{PyDict_Contains(py_var_dict, py_token_name)};
+    if (-1 == contains_token_result) {
+        std::cerr << "failed contains"
+                     "\n";
+        // TODO: throw
+        return nullptr;
+    }
+    if (1 == contains_token_result) {
+        py_token_array = PyDict_GetItem(py_var_dict, py_token_name);
+    } else {
+        py_token_array = PyList_New(0);
+        if (-1 == PyDict_SetItem(py_var_dict, py_token_name, py_token_array)) {
+            std::cerr << "failed setitem"
+                         "\n";
+            // TODO: throw
+            return nullptr;
+        }
+    }
+    return py_token_array;
+}
 }  // namespace
 
 auto PyReaderParser::module_level_init(PyObject* py_module) -> bool {
@@ -438,54 +465,32 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
         }
 
         auto const token_name{log_parser.get_id_symbol(token_type)};
-        PyObject* py_token_name{PyUnicode_FromString(token_name.c_str())};
-        if (nullptr == py_token_name) {
-            std::cerr << "failed token name" "\n";
-            return Py_None;
-        }
-        PyObject* py_token_array{nullptr};
-        auto contains_token_result{PyDict_Contains(py_var_dict, py_token_name)};
-        if (-1 == contains_token_result) {
-            std::cerr << "failed contains" "\n";
-            // TODO: throw
-            return Py_None;
-        }
-        if (1 == contains_token_result) {
-            py_token_array = PyDict_GetItem(py_var_dict, py_token_name);
-        } else {
-            py_token_array = PyList_New(0);
-            if (-1 == PyDict_SetItem(py_var_dict, py_token_name, py_token_array)) {
-                std::cerr << "failed setitem" "\n";
-                // TODO: throw
-                return Py_None;
-            }
-        }
-
-        std::cerr << "token name: " << token_name << " token: " << token_view.to_string() << "\n";
-
         auto token_str{token_view.to_string()};
+        std::cerr << "token name: " << token_name << " token: " << token_str << "\n";
         switch (token_type) {
             case static_cast<int>(log_surgeon::SymbolId::TokenNewline):
             case static_cast<int>(log_surgeon::SymbolId::TokenUncaughtString): {
                 break;
             }
             case static_cast<int>(log_surgeon::SymbolId::TokenInt): {
-                PyObject* py_long{PyLong_FromString(token_str.c_str(), nullptr, 10)};
-                if (nullptr == py_long) {
-                    py_long = PyUnicode_FromString(token_str.c_str());
+                PyObject* py_token_long{PyLong_FromString(token_str.c_str(), nullptr, 10)};
+                if (nullptr == py_token_long) {
+                    py_token_long = PyUnicode_FromString(token_str.c_str());
                 }
-                if (-1 == PyList_Append(py_token_array, py_long)) {
+                PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
+                if (-1 == PyList_Append(py_token_array, py_token_long)) {
                     // TODO: throw
                     return Py_None;
                 }
                 break;
             }
             case static_cast<int>(log_surgeon::SymbolId::TokenFloat): {
-                PyObject* py_float{PyFloat_FromDouble(std::stod(token_str))};
-                if (nullptr == py_float) {
-                    py_float = PyUnicode_FromString(token_str.c_str());
+                PyObject* py_token_float{PyFloat_FromDouble(std::stod(token_str))};
+                if (nullptr == py_token_float) {
+                    py_token_float = PyUnicode_FromString(token_str.c_str());
                 }
-                if (-1 == PyList_Append(py_token_array, py_float)) {
+                PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
+                if (-1 == PyList_Append(py_token_array, py_token_float)) {
                     // TODO: throw
                     return Py_None;
                 }
@@ -495,17 +500,13 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                 auto const& lexer{event.get_log_parser().m_lexer};
                 auto capture_ids{lexer.get_capture_ids_from_rule_id(token_type)};
                 PyObject* py_token_str{PyUnicode_FromString(token_str.c_str())};
-                if (false == capture_ids.has_value()) {
-                    if (-1 == PyList_Append(py_token_array, py_token_str)) {
-                        // TODO: throw
-                        return Py_None;
-                    }
-                    break;
-                }
-
-                if (-1 == PyDict_SetItemString(py_var_dict, "@FullMatch", py_token_str)) {
+                PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
+                if (-1 == PyList_Append(py_token_array, py_token_str)) {
                     // TODO: throw
                     return Py_None;
+                }
+                if (false == capture_ids.has_value()) {
+                    break;
                 }
 
                 for (auto const capture_id : capture_ids.value()) {
@@ -520,25 +521,9 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     auto const end_positions{token_view.get_reversed_reg_positions(end_reg_id)};
 
                     auto capture_name{lexer.m_id_symbol.at(capture_id)};
-                    PyObject* py_capture_name{PyUnicode_FromString(capture_name.c_str())};
-                    if (nullptr == py_capture_name) {
-                        return Py_None;
-                    }
-                    PyObject* py_capture_array{nullptr};
-                    auto contains_capture_result{PyDict_Contains(py_var_dict, py_capture_name)};
-                    if (-1 == contains_capture_result) {
-                        // TODO: throw
-                        return Py_None;
-                    }
-                    if (1 == contains_capture_result) {
-                        py_capture_array = PyDict_GetItem(py_var_dict, py_capture_name);
-                    } else {
-                        py_capture_array = PyList_New(0);
-                        if (-1 == PyDict_SetItem(py_var_dict, py_capture_name, py_capture_array)) {
-                            // TODO: throw
-                            return Py_None;
-                        }
-                    }
+                    PyObject* py_capture_array{
+                            get_py_token_array(py_var_dict, capture_name.c_str())
+                    };
                     for (auto i{0}; i < start_positions.size(); i++) {
                         auto capture_view{token_view};
                         capture_view.m_start_pos
@@ -571,7 +556,8 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
 //     return &metadata.at(user_defined_metadata_key);
 // }
 
-// auto PyReaderParser::handle_log_event(clp::ffi::KeyValuePairLogEvent&& log_event) -> IRErrorCode
+// auto PyReaderParser::handle_log_event(clp::ffi::KeyValuePairLogEvent&& log_event) ->
+// IRErrorCode
 // {
 //     if (has_unreleased_deserialized_log_event()) {
 //         // This situation may occur if the deserializer methods return an error
