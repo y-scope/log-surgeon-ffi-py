@@ -24,6 +24,8 @@ class LogSurgeonParser:
         self.variable_names = {}
         self.capture_group_names = {}
 
+        self.parser = None
+
 
     def add_schema_variable(self, name: str, regex: str) -> None:
         # Validate variable name
@@ -69,15 +71,18 @@ class LogSurgeonParser:
     def add_schema_timestamp(self, pattern: str):
         raise NotImplemented
 
-    def compile_schema(self) -> str:
+    def compile_schema(self) -> None:
         schema_entries = [f"delimiters:{self.delimiters}"]
         for variable in self.variables:
             schema_entries.append(variable.get_schema_variable_entry())
-        return "\n".join(schema_entries)
+        schema = "\n".join(schema_entries)
+        self.parser = ReaderParser(io.BytesIO(), schema)
 
     def parse_string(self, payload: str):
-        parser = ReaderParser(io.StringIO(payload), self.compile_schema())
-        event = parser.parse_next_log_event()
+        if None == self.parser:
+            self.compile_schema()
+        self.parser.reset_input_stream(io.StringIO(payload))
+        event = self.parser.parse_next_log_event()
         return event
 
 
@@ -94,6 +99,7 @@ if __name__ == '__main__':
     # We define a variable name, and a regular expression with a named capture group.
     parser.add_schema_variable("MemoryStore",
                                "MemoryStore started with capacity (?<MemoryStoreCapacityGiB>\d+\.\d+) GiB")
+    parser.compile_schema()
 
     # Before we parse anything, log-surgeon will jit-compile a model similar to re.compile
     event = parser.parse_string(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
@@ -106,11 +112,9 @@ if __name__ == '__main__':
     print(f"\tMemoryStoreCapacityGiB -> {event['MemoryStoreCapacityGiB']}")
 
     # Let's iterate on this example log and extract 3 platform variables: level, thread, component
-    parser = LogSurgeonParser()
-    parser.add_schema_variable("MemoryStore",
-                               "MemoryStore started with capacity (?<MemoryStoreCapacityGiB>\d+\.\d+) GiB")
     parser.add_schema_variable("Platform",
                                "(?<level>(INFO)|(WARN)|(ERROR)) \[(?<thread>.+)\] (?<component>.+):")
+    parser.compile_schema()
     event = parser.parse_string(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
     print("#######################################################")
     print(f"Message: {event.get_log_message().strip()}")
