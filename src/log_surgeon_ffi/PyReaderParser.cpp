@@ -3,8 +3,8 @@
 #include "PyReaderParser.hpp"
 
 #include <algorithm>
-#include <format>
 #include <iostream>
+#include <sstream>
 #include <log_surgeon/Constants.hpp>
 #include <log_surgeon/Reader.hpp>
 #include <log_surgeon/ReaderParser.hpp>
@@ -496,7 +496,9 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     return Py_None;
                 }
                 if (false == capture_ids.has_value()) {
-                    logtype.append(std::format("<{}>", token_name));
+                    logtype.append("<");
+                    logtype.append(token_name);
+                    logtype.append(">");
                     break;
                 }
 
@@ -534,7 +536,9 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                             // TODO: throw
                             return Py_None;
                         }
-                        logtype.append(std::format("<{}>", capture_name));
+                        logtype.append("<");
+                        logtype.append(capture_name);
+                        logtype.append(">");
                     }
                     logtype_token_view.m_start_pos = end_positions.back();
                 }

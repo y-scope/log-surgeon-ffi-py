@@ -15,6 +15,12 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 
+[project.optional-dependencies]
+dataframe = [
+    "pandas",
+    "pyarrow",
+]
+
 [project.urls]
 "Homepage" = "https://github.com/y-scope/log-surgeon-ffi-py"
 "Bug Tracker" = "https://github.com/y-scope/log-surgeon-ffi-py/issues"
