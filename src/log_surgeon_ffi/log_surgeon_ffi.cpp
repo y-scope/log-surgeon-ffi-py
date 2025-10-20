@@ -18,8 +18,7 @@ PyModuleDef Py_log_surgeon_ffi{
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 }  // namespace
 
-// NOLINTNEXTLINE(modernize-use-trailing-return-type,
-// readability-identifier-naming)
+// NOLINTNEXTLINE(modernize-use-trailing-return-type)
 PyMODINIT_FUNC PyInit_log_surgeon_ffi() {
     PyObject* new_module{PyModule_Create(&Py_log_surgeon_ffi)};
     if (nullptr == new_module) {

@@ -3,8 +3,6 @@
 
 #include <wrapped_facade_headers/Python.hpp>
 
-#include <cstdint>
-#include <log_surgeon/Constants.hpp>
 #include <log_surgeon/ReaderParser.hpp>
 #include <log_surgeon_ffi/PyObjectUtils.hpp>
 #include <memory>

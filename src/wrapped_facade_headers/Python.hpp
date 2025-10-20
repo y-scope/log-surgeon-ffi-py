@@ -18,6 +18,7 @@
 #include <bytearrayobject.h>
 #include <bytesobject.h>
 #include <dictobject.h>
+#include <exports.h>
 #include <floatobject.h>
 #include <import.h>
 #include <listobject.h>

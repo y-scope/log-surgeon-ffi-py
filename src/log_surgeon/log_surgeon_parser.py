@@ -1,9 +1,11 @@
 import io
+
 import pcre2
 
 from log_surgeon_ffi import ReaderParser
 
 DEFAULT_DELIMITERS = " \\t\\r\\n:,!;%@"
+
 
 class LogSurgeonVariable:
     def __init__(self, name: str, regex: str, capture_group_names: set[str]) -> None:
@@ -18,7 +20,7 @@ class LogSurgeonVariable:
 class LogSurgeonParser:
     def __init__(self, delimiters: str = DEFAULT_DELIMITERS):
         self.delimiters = delimiters
-        self.decoded_delimiters = delimiters.encode().decode('unicode_escape')
+        self.decoded_delimiters = delimiters.encode().decode("unicode_escape")
 
         self.variables = []
         self.variable_names = {}
@@ -26,9 +28,7 @@ class LogSurgeonParser:
 
         self.parser = None
 
-
     def add_schema_variable(self, name: str, regex: str) -> None:
-        # Validate variable name
         if name in self.variable_names:
             raise AttributeError(f'Variable "{name}" already exists and must be unique.')
         if name in self.capture_group_names:
@@ -42,8 +42,6 @@ class LogSurgeonParser:
                 f'the specified delimiters: "{self.delimiters}"'
             )
 
-
-        # Validate capture group names
         regex_pattern = pcre2.compile(regex)
         capture_group_names = set(regex_pattern.groupindex.keys())
         for capture_group_name in capture_group_names:
@@ -69,7 +67,7 @@ class LogSurgeonParser:
         self.capture_group_names[name] = log_surgeon_variable
 
     def add_schema_timestamp(self, pattern: str):
-        raise NotImplemented
+        raise NotImplementedError
 
     def compile_schema(self) -> None:
         schema_entries = [f"delimiters:{self.delimiters}"]
@@ -79,14 +77,13 @@ class LogSurgeonParser:
         self.parser = ReaderParser(io.BytesIO(), schema)
 
     def parse_string(self, payload: str):
-        if None == self.parser:
+        if self.parser is None:
             self.compile_schema()
         self.parser.reset_input_stream(io.StringIO(payload))
-        event = self.parser.parse_next_log_event()
-        return event
+        return self.parser.parse_next_log_event()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = LogSurgeonParser()
 
     # Begin with a basic motivating example: " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n"
@@ -97,25 +94,31 @@ if __name__ == '__main__':
     # We can achieve this easily using log surgeon
     # The first step is to specify the schema used for labeling, extraction and templating
     # We define a variable name, and a regular expression with a named capture group.
-    parser.add_schema_variable("MemoryStore",
-                               "MemoryStore started with capacity (?<MemoryStoreCapacityGiB>\d+\.\d+) GiB")
+    parser.add_schema_variable(
+        "MemoryStore", r"MemoryStore started with capacity (?<MemoryStoreCapacityGiB>\d+\.\d+) GiB"
+    )
     parser.compile_schema()
 
     # Before we parse anything, log-surgeon will jit-compile a model similar to re.compile
-    event = parser.parse_string(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
+    event = parser.parse_string(
+        " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n"
+    )
 
-    # Log-surgeon identifies and labels and extracts the variables in unstructured text, no matter where it is,
-    # and also generates
+    # Log-surgeon identifies, labels, and extracts the variables in unstructured text, no matter
+    # where they are.
     print("#######################################################")
     print(f"Message: {event.get_log_message().strip()}")
     print(f"\t@LogType -> {event.get_log_type()}")
     print(f"\tMemoryStoreCapacityGiB -> {event['MemoryStoreCapacityGiB']}")
 
     # Let's iterate on this example log and extract 3 platform variables: level, thread, component
-    parser.add_schema_variable("Platform",
-                               "(?<level>(INFO)|(WARN)|(ERROR)) \[(?<thread>.+)\] (?<component>.+):")
+    parser.add_schema_variable(
+        "Platform", r"(?<level>(INFO)|(WARN)|(ERROR)) \[(?<thread>.+)\] (?<component>.+):"
+    )
     parser.compile_schema()
-    event = parser.parse_string(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
+    event = parser.parse_string(
+        " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n"
+    )
     print("#######################################################")
     print(f"Message: {event.get_log_message().strip()}")
     print(f"\t@LogType -> {event.get_log_type()}")
