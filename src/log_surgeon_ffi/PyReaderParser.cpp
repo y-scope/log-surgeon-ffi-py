@@ -2,9 +2,8 @@
 
 #include "PyReaderParser.hpp"
 
-#include <object.h>
-
 #include <algorithm>
+#include <format>
 #include <iostream>
 #include <log_surgeon/Constants.hpp>
 #include <log_surgeon/Reader.hpp>
@@ -426,38 +425,39 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
         return Py_None;
     }
 
-    PyObject* py_logtype{PyUnicode_FromString(event.get_logtype().c_str())};
-    if (-1 == PyDict_SetItemString(py_var_dict, "@LogType", py_logtype)) {
-        // TODO: throw
-        return Py_None;
-    }
+    std::cerr << "log message: '" << event.to_string() << "'\n";
 
-    std::cerr << "log message: " << event.to_string() << "\n";
-    std::cerr << "log type: " << event.get_logtype() << "\n";
-
+    std::string logtype;
+    logtype.reserve(event.to_string().size());
     auto const& log_buf = event.get_log_output_buffer();
+
     auto starting_token_idx{log_buf->has_timestamp() ? 0 : 1};
     for (auto token_idx{starting_token_idx}; token_idx < log_buf->pos(); token_idx++) {
         auto token_view{log_buf->get_token(token_idx)};
         auto const token_type{token_view.m_type_ids_ptr->at(0)};
 
-        if (log_buf->has_delimiters() && (log_buf->has_timestamp() || token_idx > 1)
-            && token_type != static_cast<int>(log_surgeon::SymbolId::TokenUncaughtString)
-            && token_type != static_cast<int>(log_surgeon::SymbolId::TokenNewline))
-        {
-            if (token_view.m_start_pos == token_view.m_buffer_size - 1) {
-                token_view.m_start_pos = 0;
-            } else {
-                token_view.m_start_pos++;
-            }
-        }
+        // TODO ask Chris what case this covers in clp
+        // if (log_buf->has_delimiters() && (log_buf->has_timestamp() || token_idx > 1)
+        //     && token_type != static_cast<int>(log_surgeon::SymbolId::TokenUncaughtString)
+        //     && token_type != static_cast<int>(log_surgeon::SymbolId::TokenNewline))
+        // {
+        //     if (token_view.m_start_pos == token_view.m_buffer_size - 1) {
+        //         token_view.m_start_pos = 0;
+        //     } else {
+        //         token_view.m_start_pos++;
+        //     }
+        // }
 
         auto const token_name{log_parser.get_id_symbol(token_type)};
         auto token_str{token_view.to_string()};
-        std::cerr << "token name: " << token_name << " token: " << token_str << "\n";
+        std::cerr << "token name: " << token_name << " token: '" << token_str << "'\n";
         switch (token_type) {
-            case static_cast<int>(log_surgeon::SymbolId::TokenNewline):
+            case static_cast<int>(log_surgeon::SymbolId::TokenNewline): {
+                logtype.append("<NewLine>");
+                break;
+            }
             case static_cast<int>(log_surgeon::SymbolId::TokenUncaughtString): {
+                logtype.append(token_str);
                 break;
             }
             case static_cast<int>(log_surgeon::SymbolId::TokenInt): {
@@ -470,6 +470,7 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     // TODO: throw
                     return Py_None;
                 }
+                logtype.append("<int>");
                 break;
             }
             case static_cast<int>(log_surgeon::SymbolId::TokenFloat): {
@@ -482,6 +483,7 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     // TODO: throw
                     return Py_None;
                 }
+                logtype.append("<float>");
                 break;
             }
             default: {
@@ -494,9 +496,11 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     return Py_None;
                 }
                 if (false == capture_ids.has_value()) {
+                    logtype.append(std::format("<{}>", token_name));
                     break;
                 }
 
+                auto logtype_token_view{token_view};
                 for (auto const capture_id : capture_ids.value()) {
                     auto const register_ids{lexer.get_reg_ids_from_capture_id(capture_id)};
                     if (false == register_ids.has_value()) {
@@ -508,14 +512,20 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     auto const start_positions{token_view.get_reversed_reg_positions(start_reg_id)};
                     auto const end_positions{token_view.get_reversed_reg_positions(end_reg_id)};
 
+                    // std::cerr << "DEBUG: '"
+                    //           << logtype_token_view.to_string().substr(0, start_positions.back())
+                    //           << "'\n";
+                    logtype.append(
+                            logtype_token_view.to_string().substr(0, start_positions.back())
+                    );
+
                     auto capture_name{lexer.m_id_symbol.at(capture_id)};
                     PyObject* py_capture_array{
                             get_py_token_array(py_var_dict, capture_name.c_str())
                     };
                     for (auto i{0}; i < start_positions.size(); i++) {
                         auto capture_view{token_view};
-                        capture_view.m_start_pos
-                                = start_positions.at(start_positions.size() - 1 - i);
+                        capture_view.m_start_pos = *(start_positions.crbegin() + i);
                         capture_view.m_end_pos = end_positions.at(i);
                         PyObject* py_capture{
                                 PyUnicode_FromString(capture_view.to_string().c_str())
@@ -524,11 +534,21 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                             // TODO: throw
                             return Py_None;
                         }
+                        logtype.append(std::format("<{}>", capture_name));
                     }
+                    logtype_token_view.m_start_pos = end_positions.back();
                 }
+                logtype.append(logtype_token_view.to_string_view());
                 break;
             }
         }
+    }
+
+    std::cerr << "log type: '" << logtype << "'\n";
+    PyObject* py_logtype{PyUnicode_FromString(logtype.c_str())};
+    if (-1 == PyDict_SetItemString(py_var_dict, "@LogType", py_logtype)) {
+        // TODO: throw
+        return Py_None;
     }
     return py_log_event;
 }
