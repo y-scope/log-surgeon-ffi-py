@@ -13,13 +13,28 @@ class SchemaBuilder:
 
         self.vars: List[Variable] = []
         self.var_names: dict[str, Variable] = {}
+        self.var_hidden_names: dict[str, str] = {}
+        self.var_hidden_name_id = 0
         self.capture_group_names: dict[str, Variable] = {}
         self.timestamps: dict[str, str] = {}
+
 
     def add_timestamp(self, name: str, regex: str):
         self.timestamps[name] = regex
 
-    def add_var(self, name: str, regex: str):
+    def add_var(self, name: str, regex: str, hide_var_name_if_named_group_present: bool = True):
+        # Validate capture group names
+        regex_pattern = pcre2.compile(regex)
+        capture_group_names = set(regex_pattern.groupindex.keys())
+
+        if hide_var_name_if_named_group_present and len(capture_group_names) > 0:
+            # Want to create a random name with static prefix that we want to ignore later
+            # This should create random names that we can hide later
+            hidden_name = f"LogSurgeonHiddenVariables{self.var_hidden_name_id}"
+            self.var_hidden_name_id += 1
+            self.var_hidden_names[name] = hidden_name
+            name = hidden_name
+
         # Validate variable name
         if name in self.var_names:
             raise AttributeError(f'Variable "{name}" already exists and must be unique.')
@@ -62,6 +77,11 @@ class SchemaBuilder:
         return self
 
     def remove_var(self, var_name: str):
+        # Resolve hidden name using mapping if available
+        hidden_name = self.var_hidden_names.get(var_name)
+        if hidden_name is not None:
+            var_name = hidden_name
+
         var = self.var_names.pop(var_name)
         self.vars.remove(var)
         for capture_group_name in var.capture_group_names:

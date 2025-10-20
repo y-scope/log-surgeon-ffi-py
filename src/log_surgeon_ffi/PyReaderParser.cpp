@@ -451,6 +451,7 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
         auto const token_name{log_parser.get_id_symbol(token_type)};
         auto token_str{token_view.to_string()};
         std::cerr << "token name: " << token_name << " token: '" << token_str << "'\n";
+
         switch (token_type) {
             case static_cast<int>(log_surgeon::SymbolId::TokenNewline): {
                 logtype.append("<NewLine>");
@@ -465,10 +466,13 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                 if (nullptr == py_token_long) {
                     py_token_long = PyUnicode_FromString(token_str.c_str());
                 }
-                PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
-                if (-1 == PyList_Append(py_token_array, py_token_long)) {
-                    // TODO: throw
-                    return Py_None;
+                // Skip hidden variables
+                if (token_name.rfind("LogSurgeonHiddenVariables", 0) != 0) {
+                    PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
+                        if (-1 == PyList_Append(py_token_array, py_token_long)) {
+                            // TODO: throw
+                            return Py_None;
+                        }
                 }
                 logtype.append("<int>");
                 break;
@@ -478,10 +482,13 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                 if (nullptr == py_token_float) {
                     py_token_float = PyUnicode_FromString(token_str.c_str());
                 }
-                PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
-                if (-1 == PyList_Append(py_token_array, py_token_float)) {
-                    // TODO: throw
-                    return Py_None;
+                // Skip hidden variables
+                if (token_name.rfind("LogSurgeonHiddenVariables", 0) != 0) {
+                    PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
+                    if (-1 == PyList_Append(py_token_array, py_token_float)) {
+                        // TODO: throw
+                        return Py_None;
+                    }
                 }
                 logtype.append("<float>");
                 break;
@@ -490,10 +497,13 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                 auto const& lexer{event.get_log_parser().m_lexer};
                 auto capture_ids{lexer.get_capture_ids_from_rule_id(token_type)};
                 PyObject* py_token_str{PyUnicode_FromString(token_str.c_str())};
-                PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
-                if (-1 == PyList_Append(py_token_array, py_token_str)) {
-                    // TODO: throw
-                    return Py_None;
+                // Skip hidden variables
+                if (token_name.rfind("LogSurgeonHiddenVariables", 0) != 0) {
+                    PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
+                    if (-1 == PyList_Append(py_token_array, py_token_str)) {
+                        // TODO: throw
+                        return Py_None;
+                    }
                 }
                 if (false == capture_ids.has_value()) {
                     logtype.append("<");
@@ -514,9 +524,9 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     auto const start_positions{token_view.get_reversed_reg_positions(start_reg_id)};
                     auto const end_positions{token_view.get_reversed_reg_positions(end_reg_id)};
 
-                    // std::cerr << "DEBUG: '"
-                    //           << logtype_token_view.to_string().substr(0, start_positions.back())
-                    //           << "'\n";
+//                     std::cerr << "DEBUG: '"
+//                               << logtype_token_view.to_string().substr(0, start_positions.back())
+//                               << "'\n";
 
                     // * Instead of printing "variable_name:<capture group name>", we print "<capture group name"> only
                     // Therefore we comment out the 3 lines below, and replaced it with "<space>" to pretty-print logtype
