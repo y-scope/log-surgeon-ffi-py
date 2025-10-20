@@ -517,9 +517,13 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     // std::cerr << "DEBUG: '"
                     //           << logtype_token_view.to_string().substr(0, start_positions.back())
                     //           << "'\n";
-                    logtype.append(
-                            logtype_token_view.to_string().substr(0, start_positions.back())
-                    );
+
+                    // * Instead of printing "variable_name:<capture group name>", we print "<capture group name"> only
+                    // Therefore we comment out the 3 lines below, and replaced it with "<space>" to pretty-print logtype
+//                    logtype.append(
+//                            logtype_token_view.to_string().substr(0, start_positions.back())
+//                    );
+                    logtype.append(" ");
 
                     auto capture_name{lexer.m_id_symbol.at(capture_id)};
                     PyObject* py_capture_array{
