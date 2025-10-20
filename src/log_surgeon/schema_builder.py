@@ -5,6 +5,7 @@ import pcre2
 from log_surgeon.variable import Variable
 
 DEFAULT_DELIMITERS = " \\t\\r\\n:,!;%@/"
+LOG_SURGEON_HIDDEN_VARIABLE_PREFIX = "LogSurgeonHiddenVariables"
 
 class SchemaBuilder:
     def __init__(self, delimiters: str = DEFAULT_DELIMITERS) -> None:
@@ -30,7 +31,7 @@ class SchemaBuilder:
         if hide_var_name_if_named_group_present and len(capture_group_names) > 0:
             # Want to create a random name with static prefix that we want to ignore later
             # This should create random names that we can hide later
-            hidden_name = f"LogSurgeonHiddenVariables{self.var_hidden_name_id}"
+            hidden_name = f"{LOG_SURGEON_HIDDEN_VARIABLE_PREFIX}{self.var_hidden_name_id}"
             self.var_hidden_name_id += 1
             self.var_hidden_names[name] = hidden_name
             name = hidden_name
