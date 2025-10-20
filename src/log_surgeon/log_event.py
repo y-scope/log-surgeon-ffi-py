@@ -14,6 +14,9 @@ class LogEvent:
     def get_variable(self, variable_name: str, raw_output: bool = False) -> str | list[str | int | float] | None:
         val = self._var_dict.get(variable_name)
 
+        if variable_name == "@LogType":
+            return val
+
         if not val:  # Covers both None and empty list
             return None
 
@@ -38,7 +41,7 @@ class LogEvent:
         return self.get_variable(variable_name, raw_output=False)
 
     def __str__(self) -> str:
-        return json.dumps(self._var_dict, indent=2)
+        return json.dumps({key: self.get_variable(key) for key in self._var_dict}, indent=2)
 
     def __repr__(self) -> str:
         return json.dumps(self._var_dict)
