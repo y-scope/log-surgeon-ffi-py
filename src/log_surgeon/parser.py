@@ -43,9 +43,6 @@ class Parser:
         self._schema_compiler: SchemaCompiler = SchemaCompiler(delimiters)
         self._enable_debug = False
 
-    def enable_debug(self, enable_debug: bool = True):
-        self._enable_debug = enable_debug
-
     def add_var(
         self,
         name: str,
@@ -84,7 +81,7 @@ class Parser:
         self._schema_compiler.add_timestamp(name, regex)
         return self
 
-    def compile(self) -> None:
+    def compile(self, enable_debug_logs: bool = False) -> None:
         """
         Build and initialize the parser with the configured schema.
 
@@ -98,7 +95,7 @@ class Parser:
             io.BytesIO(),
             self._schema_compiler.compile(),
             self._schema_compiler.get_capture_group_name_resolver(),
-            self._enable_debug
+            enable_debug_logs
         )
 
     def load_schema(self, schema: str, group_name_resolver: GroupNameResolver) -> None:
