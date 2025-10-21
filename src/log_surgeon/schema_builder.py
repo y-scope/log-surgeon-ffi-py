@@ -1,15 +1,20 @@
+"""Schema builder for constructing log-surgeon schema definitions."""
+
 import re
 
 from log_surgeon.variable import Variable
 from log_surgeon.group_name_resolver import GroupNameResolver
 
 DEFAULT_DELIMITERS = r" \t\r\n:,!;%@/\(\)\[\]"
-LOG_SURGEON_HIDDEN_VARIABLE_PREFIX = "LogSurgeonHiddenVariables"
+"""Default delimiter characters for tokenization."""
 
-_VARIABLE_EXISTS_ERROR = 'Variable "{name}" already exists and must be unique.'
+LOG_SURGEON_HIDDEN_VARIABLE_PREFIX = "LogSurgeonHiddenVariables"
+"""Prefix for auto-generated hidden variable names."""
+
+_VARIABLE_EXISTS_ERROR = "Variable \"{name}\" already exists and must be unique."
 _VARIABLE_DELIMITER_CONFLICT_ERROR = (
-    'Variable "{name}" contains characters that conflict with '
-    'the specified delimiters: "{delimiters}"'
+    "Variable \"{name}\" contains characters that conflict with "
+    "the specified delimiters: \"{delimiters}\""
 )
 
 
@@ -17,7 +22,15 @@ class SchemaBuilder:
     """
     Builder for constructing log-surgeon schema definitions.
 
-    Manages variables, capture groups, timestamps, and delimiters for log parsing.
+    The SchemaBuilder provides a fluent interface for defining variables, timestamps,
+    and delimiters that will be used to parse log messages. It manages the mapping
+    between logical (user-defined) and physical (auto-generated) capture group names.
+
+    Example:
+        >>> builder = SchemaBuilder()
+        >>> builder.add_var("metric", r"value=(?<value>\\d+)")
+        >>> builder.add_timestamp("ts", r"\\d{4}-\\d{2}-\\d{2}")
+        >>> schema = builder.build()
     """
 
     def __init__(self, delimiters: str = DEFAULT_DELIMITERS) -> None:
@@ -25,12 +38,13 @@ class SchemaBuilder:
         Initialize a schema builder.
 
         Args:
-            delimiters: String of delimiter characters for tokenization
+            delimiters: String of delimiter characters for tokenization.
+                Default includes space, tab, newline, and common punctuation.
         """
         self.delimiters: str = delimiters
-        self.decoded_delimiters: str = delimiters.encode().decode('unicode_escape')
+        self.decoded_delimiters: str = delimiters.encode().decode("unicode_escape")
 
-        # We need to keep an order list of Variables as well as ones for quick lookup
+        # Maintain ordered list of Variables and quick lookup dictionary
         self.vars: list[Variable] = []
         self.var_names: dict[str, Variable] = {}
         self.var_hidden_names: dict[str, str] = {}
@@ -40,7 +54,13 @@ class SchemaBuilder:
 
         self.capture_group_name_resolver: GroupNameResolver = GroupNameResolver("CGPrefix")
 
-    def get_capture_group_name_resolver(self):
+    def get_capture_group_name_resolver(self) -> GroupNameResolver:
+        """
+        Get the capture group name resolver.
+
+        Returns:
+            GroupNameResolver for mapping logical to physical capture group names
+        """
         return self.capture_group_name_resolver
 
     def add_timestamp(self, name: str, regex: str) -> "SchemaBuilder":
@@ -112,14 +132,24 @@ class SchemaBuilder:
         return self
 
     def _validate_variable_name(self, name: str) -> None:
-        """Validate that a variable name doesn't conflict with existing names or delimiters."""
+        """
+        Validate that a variable name doesn't conflict with existing names or delimiters.
+
+        Args:
+            name: Variable name to validate
+
+        Raises:
+            AttributeError: If variable name already exists
+            ValueError: If variable name contains delimiter characters
+        """
         if name in self.var_names:
             raise AttributeError(_VARIABLE_EXISTS_ERROR.format(name=name))
         if any(char in name for char in self.decoded_delimiters):
-            raise ValueError(_VARIABLE_DELIMITER_CONFLICT_ERROR.format(
-                name=name,
-                delimiters=self.delimiters
-            ))
+            raise ValueError(
+                _VARIABLE_DELIMITER_CONFLICT_ERROR.format(
+                    name=name, delimiters=self.delimiters
+                )
+            )
 
     def remove_var(self, var_name: str) -> "SchemaBuilder":
         """

@@ -133,11 +133,21 @@ print(df)
 
 High-level parser for extracting structured data from unstructured log messages.
 
+#### Constructor
+
+- `Parser(delimiters: str = r" \t\r\n:,!;%@/\(\)\[\]")`
+  - Initialize a parser with optional custom delimiters
+  - Default delimiters include space, tab, newline, and common punctuation
+
 #### Methods
 
 - `add_var(name: str, regex: str, hide_var_name_if_named_group_present: bool = True) -> Parser`
   - Add a variable pattern to the parser's schema
   - Supports named capture groups using `(?<name>)` syntax
+  - Returns self for method chaining
+
+- `add_timestamp(name: str, regex: str) -> Parser`
+  - Add a timestamp pattern to the parser's schema
   - Returns self for method chaining
 
 - `build() -> None`
@@ -165,46 +175,88 @@ Represents a parsed log event with extracted variables.
   - Get the original log message
 
 - `get_log_type() -> str`
-  - Get the generated log type (template)
+  - Get the generated log type (template) with logical group names
 
-- `get_capture_group_str_representation(field: str) -> str | None`
+- `get_capture_group(logical_capture_group_name: str, raw_output: bool = False) -> str | list | None`
+  - Get the value of a capture group by its logical name
+  - If `raw_output=False` (default), single values are unwrapped from lists
+  - Returns None if capture group not found
+
+- `get_capture_group_str_representation(field: str, raw_output: bool = False) -> str`
   - Get the string representation of a capture group value
 
-- `__getitem__(key: str) -> str`
+- `__getitem__(key: str) -> str | list`
   - Access capture group values by name (e.g., `event['field_name']`)
+  - Shorthand for `get_capture_group(key, raw_output=False)`
+
+- `__str__() -> str`
+  - Get formatted JSON representation of the log event with logical group names
 
 ### Query
 
 Query builder for parsing log events into structured data formats.
 
+#### Constructor
+
+- `Query(parser: Parser)`
+  - Initialize a query with a configured parser
+
 #### Methods
 
 - `select(fields: list[str]) -> Query`
   - Select fields to extract (use `["*"]` for all fields)
+  - Returns self for method chaining
 
 - `from_stream(stream: io.StringIO | io.BytesIO) -> Query`
   - Set the input stream to parse
+  - Returns self for method chaining
 
 - `validate_query() -> Query`
   - Validate that the query is properly configured
+  - Returns self for method chaining
 
 - `to_dataframe(drop_null_rows: bool = True) -> pd.DataFrame`
   - Convert parsed events to a pandas DataFrame
+  - Requires pandas (install with `pip install log-surgeon-ffi[dataframe]`)
+
+- `to_df(drop_null_rows: bool = True) -> pd.DataFrame`
+  - Alias for `to_dataframe()`
 
 - `to_arrow(drop_null_rows: bool = True) -> pa.Table`
   - Convert parsed events to a PyArrow Table
+  - Requires pyarrow (install with `pip install log-surgeon-ffi[dataframe]`)
+
+- `to_pa(drop_null_rows: bool = True) -> pa.Table`
+  - Alias for `to_arrow()`
+
+- `get_rows(drop_null_rows: bool = True) -> list[list]`
+  - Extract rows of field values from parsed events
 
 ### SchemaBuilder
 
 Builder for constructing log-surgeon schema definitions.
 
+#### Constructor
+
+- `SchemaBuilder(delimiters: str = DEFAULT_DELIMITERS)`
+  - Initialize a schema builder with optional custom delimiters
+
 #### Methods
 
 - `add_var(name: str, regex: str, hide_var_name_if_named_group_present: bool = True) -> SchemaBuilder`
   - Add a variable pattern to the schema
+  - Returns self for method chaining
 
 - `add_timestamp(name: str, regex: str) -> SchemaBuilder`
   - Add a timestamp pattern to the schema
+  - Returns self for method chaining
+
+- `remove_var(var_name: str) -> SchemaBuilder`
+  - Remove a variable from the schema
+  - Returns self for method chaining
+
+- `get_var(var_name: str) -> Variable`
+  - Get a variable by name
 
 - `build() -> str`
   - Build the final schema string
@@ -212,7 +264,56 @@ Builder for constructing log-surgeon schema definitions.
 - `get_capture_group_name_resolver() -> GroupNameResolver`
   - Get the resolver for mapping logical to physical capture group names
 
-## Schema Format
+### GroupNameResolver
+
+Bidirectional mapping between logical (user-defined) and physical (auto-generated) group names.
+
+#### Constructor
+
+- `GroupNameResolver(physical_name_prefix: str)`
+  - Initialize with a prefix for auto-generated physical names
+
+#### Methods
+
+- `create_new_physical_name(logical_name: str) -> str`
+  - Create a new unique physical name for a logical name
+  - Each call generates a new physical name
+
+- `get_physical_names(logical_name: str) -> set[str]`
+  - Get all physical names associated with a logical name
+
+- `get_logical_name(physical_name: str) -> str`
+  - Get the logical name for a physical name
+
+## Key Concepts
+
+### Delimiters
+
+Delimiters are characters used to split log messages into tokens. The default delimiters include:
+- Whitespace: space, tab (`\t`), newline (`\n`), carriage return (`\r`)
+- Punctuation: `:`, `,`, `!`, `;`, `%`, `@`, `/`, `(`, `)`, `[`, `]`
+
+You can customize delimiters when creating a Parser:
+
+```python
+parser = Parser(delimiters=r" \t\n,:")  # Custom delimiters
+```
+
+### Named Capture Groups
+
+Use named capture groups in regex patterns to extract specific fields:
+
+```python
+parser.add_var("metric", r"metric=(?<metric_name>\w+) value=(?<value>\d+)")
+```
+
+The syntax `(?<name>pattern)` creates a capture group that can be accessed as `event['name']`.
+
+### Logical vs Physical Names
+
+Internally, log-surgeon uses "physical" names (e.g., `CGPrefix0`, `CGPrefix1`) for capture groups, while you work with "logical" names (e.g., `user_id`, `thread`). The `GroupNameResolver` handles this mapping automatically.
+
+### Schema Format
 
 The schema defines delimiters, timestamps, and variables for parsing:
 
@@ -227,7 +328,7 @@ timestamp:<timestamp_regex>
 variable_name:<variable_regex>
 ```
 
-Named capture groups in regex patterns use the syntax `(?<name>pattern)`.
+When using the fluent API (`Parser.add_var()` and `Parser.build()`), the schema is built automatically.
 
 ## Development
 

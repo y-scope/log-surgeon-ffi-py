@@ -1,3 +1,5 @@
+"""Log event representation with extracted variables and metadata."""
+
 import json
 import re
 
@@ -9,7 +11,18 @@ class LogEvent:
     Represents a parsed log event with extracted variables and metadata.
 
     A LogEvent contains the original log message, a log type (template), and
-    extracted variables from the log message based on the schema pattern.
+    extracted variables from the log message based on the schema pattern matching.
+    Variables can be accessed directly using dictionary-style indexing with their
+    logical (user-defined) names.
+
+    Example:
+        >>> event = parser.parse_event("INFO [main] Processing value=42")
+        >>> event.get_log_message()
+        'INFO [main] Processing value=42'
+        >>> event['value']
+        '42'
+        >>> event.get_log_type()
+        '<timestamp><platform_level> [<platform_thread>] Processing value=<value>'
     """
 
     def __init__(self) -> None:
@@ -93,7 +106,41 @@ class LogEvent:
         logical_capture_group_name: str,
         raw_output: bool = False
     ) -> str:
+        """
+        Get the string representation of a capture group value.
+
+        Args:
+            logical_capture_group_name: Logical name of the capture group
+            raw_output: If True, return raw list format. If False, unwrap single values
+
+        Returns:
+            String representation of the capture group value
+
+        Example:
+            >>> event.get_capture_group_str_representation('value')
+            '42'
+            >>> event.get_capture_group_str_representation('values', raw_output=True)
+            "['1', '2', '3']"
+        """
         return f"{self.get_capture_group(logical_capture_group_name, raw_output)}"
+
+    def __getitem__(self, logical_capture_group_name: str) -> str | list[str | int | float]:
+        """
+        Access a capture group value by its logical name.
+
+        Args:
+            logical_capture_group_name: Logical (user-defined) name of the capture group
+
+        Returns:
+            The captured value(s) for the group
+
+        Example:
+            >>> event['thread']
+            'main'
+            >>> event['values']
+            ['1', '2', '3']
+        """
+        return self.get_capture_group(logical_capture_group_name, raw_output=False)
 
     def __str__(self) -> str:
         """

@@ -1,3 +1,5 @@
+"""High-level parser for extracting structured data from unstructured log messages."""
+
 import io
 from typing import Generator
 
@@ -7,7 +9,7 @@ from log_surgeon.log_event import LogEvent
 from log_surgeon_ffi import ReaderParser
 
 _PARSER_NOT_INITIALIZED_ERROR = (
-    "Parser not initialized. Load a log surgeon schema using load_schema() or load_schema_file()"
+    "Parser not initialized. Load a log surgeon schema using load_schema() or build()"
 )
 
 
@@ -16,11 +18,27 @@ class Parser:
     High-level parser for extracting structured data from unstructured log messages.
 
     The Parser uses a schema-based approach to identify patterns, extract variables,
-    and generate log types from raw log text.
+    and generate log types from raw log text. It supports both fluent API style
+    (using add_var() and build()) and direct schema loading.
+
+    Example:
+        >>> parser = Parser()
+        >>> parser.add_var("metric", r"value=(?<value>\\d+)")
+        >>> parser.build()
+        >>> event = parser.parse_event("Processing value=42")
+        >>> print(event['value'])
+        42
     """
 
-    def __init__(self, delimiters=r" \t\r\n:,!;%@/\(\)\[\]") -> None:
-        """Initialize the parser."""
+    def __init__(self, delimiters: str = r" \t\r\n:,!;%@/\(\)\[\]") -> None:
+        """
+        Initialize the parser.
+
+        Args:
+            delimiters: String of delimiter characters for tokenization.
+                Default includes space, tab, newline, and common punctuation.
+                These characters are used to split log messages into tokens.
+        """
         self._parser: ReaderParser | None = None
         self._schema_builder: SchemaBuilder = SchemaBuilder(delimiters)
 
@@ -45,7 +63,20 @@ class Parser:
         self._schema_builder.add_var(name, regex, hide_var_name_if_named_group_present)
         return self
 
-    def add_timestamp(self, name: str, regex: str):
+    def add_timestamp(self, name: str, regex: str) -> "Parser":
+        """
+        Add a timestamp pattern to the parser's schema.
+
+        Args:
+            name: Name identifier for the timestamp pattern
+            regex: Regular expression pattern for matching timestamps
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> parser.add_timestamp("iso8601", r"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}")
+        """
         self._schema_builder.add_timestamp(name, regex)
         return self
 
