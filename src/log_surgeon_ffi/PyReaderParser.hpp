@@ -53,17 +53,14 @@ public:
     /**
      * Since the memory allocation of `PyReaderParser` is handled by CPython's
      * allocator, cpp constructors will not be explicitly called. This function
-     * serves as the default constructor to initialize the underlying deserializer
-     * and deserializer buffer reader. Other data members are assumed to be
-     * zero-initialized by `default-init` method. It has to be manually called
-     * whenever creating a new `PyReaderParser` object through CPython APIs.
-     * @param input_stream The input IR stream. Must be a Python `IO[byte]`
-     * object.
-     * @param buffer_capacity The buffer capacity used to initialize the
-     * underlying `PyReaderParserBufferReader`.
-     * @param allow_incomplete_stream Whether to treat an incomplete CLP IR stream
-     * as an error. When set to `true`, an incomplete stream is interpreted as the
-     * end of the stream without raising an exception.
+     * serves as the default constructor to initialize the underlying parser.
+     * Other data members are assumed to be zero-initialized by `default-init`
+     * method. It has to be manually called whenever creating a new
+     * `PyReaderParser` object through CPython APIs.
+     * @param py_input_stream The input stream. Must be a Python `IO[bytes]` object.
+     * @param schema_content The schema definition string for parsing.
+     * @param py_group_name_resolver GroupNameResolver for mapping logical to physical group names.
+     * @param debug Whether to enable debug output to stderr.
      * @return true on success.
      * @return false on failure with the relevant Python exception and error set.
      */

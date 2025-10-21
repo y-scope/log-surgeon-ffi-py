@@ -26,24 +26,19 @@ namespace {
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
 PyDoc_STRVAR(
         cPyReaderParserDoc,
-        "Deserializer for deserializing CLP key-value pair IR streams.\n"
-        "This class deserializes a CLP key-value pair IR stream into log "
-        "events.\n\n"
-        "__init__(self, input_stream, buffer_capacity=65536, "
-        "allow_incomplete_stream=False)\n\n"
-        "Initializes a :class:`Deserializer` instance with the given inputs. Note "
-        "that each"
-        " object should only be initialized once. Double initialization will "
-        "result in a memory"
-        " leak.\n\n"
-        ":param input_stream: Serialized CLP IR stream.\n"
+        "Parser for parsing log events using log-surgeon schemas.\n"
+        "This class parses unstructured log messages into structured log events "
+        "with extracted variables.\n\n"
+        "__init__(self, input_stream, schema_content, group_name_resolver, debug=False)\n\n"
+        "Initializes a :class:`ReaderParser` instance with the given inputs.\n\n"
+        ":param input_stream: Input stream containing log data.\n"
         ":type input_stream: IO[bytes]\n"
-        ":param buffer_capacity: The capacity of the underlying read buffer.\n"
-        ":type buffer_capacity: int\n"
-        ":param allow_incomplete_stream: If set to `True`, an incomplete CLP IR "
-        "stream is not"
-        " treated as an error.\n"
-        ":type allow_incomplete_stream: bool\n"
+        ":param schema_content: Schema definition string for parsing.\n"
+        ":type schema_content: str\n"
+        ":param group_name_resolver: Resolver for mapping logical to physical group names.\n"
+        ":type group_name_resolver: GroupNameResolver\n"
+        ":param debug: Whether to enable debug output to stderr (default: False).\n"
+        ":type debug: bool\n"
 );
 LOG_SURGEON_FFI_METHOD auto
 PyReaderParser_init(PyReaderParser* self, PyObject* args, PyObject* keywords) -> int;

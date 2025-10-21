@@ -20,11 +20,8 @@ class Parser:
     """
 
     def __init__(self) -> None:
-        """
-        Initialize the parser with an optional schema.
-        """
+        """Initialize the parser."""
         self._parser: ReaderParser | None = None
-
 
     def load_schema(self, schema: str, group_name_resolver: GroupNameResolver) -> None:
         """
@@ -32,6 +29,7 @@ class Parser:
 
         Args:
             schema: Schema definition string
+            group_name_resolver: GroupNameResolver for mapping logical to physical group names
         """
         self._parser = ReaderParser(io.BytesIO(), schema, group_name_resolver)
 
@@ -66,7 +64,8 @@ class Parser:
             RuntimeError: If parser is not initialized with a schema
 
         Example:
-            >>> parser = Parser(schema)
+            >>> parser = Parser()
+            >>> parser.load_schema(schema, resolver)
             >>> with open("logs.txt") as f:
             ...     for event in parser.parse(io.StringIO(f.read())):
             ...         print(event['field_name'])
