@@ -256,8 +256,12 @@ auto PyReaderParser::module_level_init(PyObject* py_module) -> bool {
     return add_python_type(get_py_type(), "ReaderParser", py_module);
 }
 
-auto PyReaderParser::init(PyObject* py_input_stream, char const* schema_content, PyObject* py_group_name_resolver, bool debug)
-        -> bool {
+auto PyReaderParser::init(
+        PyObject* py_input_stream,
+        char const* schema_content,
+        PyObject* py_group_name_resolver,
+        bool debug
+) -> bool {
     // TODO use try catch + throw a py exception around log surgeon code
     // TODO review PyErr and exceptions on returns
 
@@ -420,7 +424,9 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
     }
 
     // Set the group name resolver on the log event
-    auto const set_resolver_result{PyObject_SetAttrString(py_log_event, "_group_name_resolver", m_py_group_name_resolver)};
+    auto const set_resolver_result{
+            PyObject_SetAttrString(py_log_event, "_group_name_resolver", m_py_group_name_resolver)
+    };
     if (-1 == set_resolver_result) {
         Py_DECREF(py_log_event);
         return Py_None;
@@ -519,9 +525,12 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     PyObject* py_capture_array{
                             get_py_token_array(py_var_dict, capture_name.c_str())
                     };
-                    for (auto i{0}; i < start_positions.size() && i < end_positions.size(); i++) {
+                    // TODO log surgeon currently does not support multicaptures.
+                    for (auto i{0}; i < 1 && i < start_positions.size() && i < end_positions.size();
+                         i++)
+                    {
                         auto capture_view{token_view};
-                        capture_view.m_start_pos = *(start_positions.crbegin() + i);
+                        capture_view.m_start_pos = start_positions.at(i);
                         capture_view.m_end_pos = end_positions.at(i);
                         PyObject* py_capture{
                                 PyUnicode_FromString(capture_view.to_string().c_str())
