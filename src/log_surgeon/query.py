@@ -1,7 +1,6 @@
 import io
 from typing import TYPE_CHECKING
 
-from log_surgeon.log_event import LogEvent
 from log_surgeon.parser import Parser
 
 if TYPE_CHECKING:
@@ -30,9 +29,27 @@ _ARROW_IMPORT_ERROR = (
 
 
 class Query:
-    """Query builder for parsing log events into structured data formats."""
+    """
+    Query builder for parsing log events into structured data formats.
+
+    The Query class provides a fluent interface for extracting structured data
+    from log files. It supports exporting to pandas DataFrames and PyArrow Tables.
+
+    Example:
+        >>> parser = Parser()
+        >>> parser.add_var("metric", r"value=(?<value>\\d+)")
+        >>> parser.build()
+        >>> query = Query(parser).select(["value"]).from_stream(stream)
+        >>> df = query.to_dataframe()
+    """
 
     def __init__(self, parser: Parser) -> None:
+        """
+        Initialize a query builder.
+
+        Args:
+            parser: Configured Parser instance for log parsing
+        """
         self.fields: list[str] | None = None
         self.stream: io.StringIO | io.BytesIO | None = None
         self.parser: Parser = parser
@@ -51,7 +68,7 @@ class Query:
             AttributeError: If "*" is combined with other field names
         """
         if "*" in fields and len(fields) > 1:
-            raise AttributeError('You cannot combine "*" with other field names.')
+            raise AttributeError("You cannot combine \"*\" with other field names.")
 
         self.fields = fields
         return self
@@ -80,14 +97,23 @@ class Query:
             AttributeError: If fields or stream are not set
         """
         if self.fields is None:
-            raise AttributeError('Query is missing fields')
+            raise AttributeError("Query is missing fields")
         if not self.fields:
-            raise AttributeError('Selected fields must be at least one variable, use "*" if unknown')
+            raise AttributeError("Selected fields must be at least one variable, use \"*\" if unknown")
         if self.stream is None:
-            raise AttributeError('Query is empty')
+            raise AttributeError("Query is empty")
         return self
 
-    def to_df(self, drop_null_rows: bool = True):
+    def to_df(self, drop_null_rows: bool = True) -> "pd.DataFrame":
+        """
+        Alias for to_dataframe().
+
+        Args:
+            drop_null_rows: Whether to drop rows with all null values
+
+        Returns:
+            pandas DataFrame with extracted fields
+        """
         return self.to_dataframe(drop_null_rows=drop_null_rows)
 
     def to_dataframe(self, drop_null_rows: bool = True) -> "pd.DataFrame":
@@ -113,6 +139,15 @@ class Query:
         return pd.DataFrame(rows, columns=self.fields)
 
     def to_pa(self, drop_null_rows: bool = True) -> "pa.Table":
+        """
+        Alias for to_arrow().
+
+        Args:
+            drop_null_rows: Whether to drop rows with all null values
+
+        Returns:
+            PyArrow Table with extracted fields
+        """
         return self.to_arrow(drop_null_rows=drop_null_rows)
 
     def to_arrow(self, drop_null_rows: bool = True) -> "pa.Table":
@@ -157,26 +192,36 @@ class Query:
                 rows.append(row)
         return rows
 
-if __name__ == '__main__':
-    from log_surgeon.schema_builder import SchemaBuilder
-
-    schema_builder = SchemaBuilder()
-    schema_builder.add_var(
-        "MemoryStore",
-        r"MemoryStore started with capacity (?<MemoryStoreCapacityGiB>\d+\.\d+) GiB"
-    )
+if __name__ == "__main__":
+    # Example: Extract metrics from logs and export to DataFrame
     parser = Parser()
-    parser.load_schema(schema_builder.build(), schema_builder.get_capture_group_name_resolver())
+    parser.add_var(
+        "memoryStore",
+        r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
+    )
+    parser.build()
 
-    input_stream = io.StringIO(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
+    log_data = " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB"
+    input_stream = io.StringIO(log_data)
+
     query = (
         Query(parser)
-        .select(["MemoryStoreCapacityGiB"])
+        .select(["memory_store_capacity_GiB"])
         .from_stream(input_stream)
         .validate_query()
     )
 
+    # Export to pandas DataFrame
     df = query.to_dataframe(drop_null_rows=True)
-    arrow_table = query.to_arrow(drop_null_rows=True)
+    print("DataFrame:")
+    print(df)
+    print()
 
-    print("Query executed successfully")
+    # Reset stream for second export
+    input_stream = io.StringIO(log_data)
+    query.from_stream(input_stream)
+
+    # Export to PyArrow Table
+    arrow_table = query.to_arrow(drop_null_rows=True)
+    print("Arrow Table:")
+    print(arrow_table)
