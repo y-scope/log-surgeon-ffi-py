@@ -1,5 +1,3 @@
-from typing import List
-
 import re
 
 from log_surgeon.variable import Variable
@@ -7,66 +5,107 @@ from log_surgeon.variable import Variable
 DEFAULT_DELIMITERS = " \t\r\n:,!;%@/\(\)\[\]"
 LOG_SURGEON_HIDDEN_VARIABLE_PREFIX = "LogSurgeonHiddenVariables"
 
-class SchemaBuilder:
-    def __init__(self, delimiters: str = DEFAULT_DELIMITERS) -> None:
-        self.delimiters = delimiters
-        self.decoded_delimiters = delimiters.encode().decode('unicode_escape')
+_VARIABLE_EXISTS_ERROR = 'Variable "{name}" already exists and must be unique.'
+_VARIABLE_CAPTURE_CONFLICT_ERROR = (
+    'Variable "{name}" cannot coexist with a capture group of the same name '
+    'already defined in variable "{var_name}".'
+)
+_VARIABLE_DELIMITER_CONFLICT_ERROR = (
+    'Variable "{name}" contains characters that conflict with '
+    'the specified delimiters: "{delimiters}"'
+)
+_CAPTURE_VARIABLE_CONFLICT_ERROR = (
+    'Capture group name "{capture_name}" in variable "{name}" '
+    'cannot coexist with another variable named "{capture_name}".'
+)
+_CAPTURE_DUPLICATE_ERROR = (
+    'Variable "{name}" defines a capture group "{capture_name}" that duplicates '
+    'a group already present in variable "{var_name}".'
+)
+_CAPTURE_DELIMITER_CONFLICT_ERROR = (
+    'Capture group "{capture_name}" in variable "{name}" '
+    'contains delimiter characters: "{delimiters}"'
+)
 
-        self.vars: List[Variable] = []
+
+class SchemaBuilder:
+    """
+    Builder for constructing log-surgeon schema definitions.
+
+    Manages variables, capture groups, timestamps, and delimiters for log parsing.
+    """
+
+    def __init__(self, delimiters: str = DEFAULT_DELIMITERS) -> None:
+        """
+        Initialize a schema builder.
+
+        Args:
+            delimiters: String of delimiter characters for tokenization
+        """
+        self.delimiters: str = delimiters
+        self.decoded_delimiters: str = delimiters.encode().decode('unicode_escape')
+
+        self.vars: list[Variable] = []
         self.var_names: dict[str, Variable] = {}
         self.var_hidden_names: dict[str, str] = {}
-        self.var_hidden_name_id = 0
+        self._var_hidden_name_id: int = 0
         self.capture_group_names: dict[str, Variable] = {}
         self.timestamps: dict[str, str] = {}
 
-    def add_timestamp(self, name: str, regex: str):
-        self.timestamps[name] = regex
+    def add_timestamp(self, name: str, regex: str) -> "SchemaBuilder":
+        """
+        Add a timestamp pattern to the schema.
 
-    def add_var(self, name: str, regex: str, hide_var_name_if_named_group_present: bool = True):
-        # Validate capture group names
+        Args:
+            name: Name identifier for the timestamp
+            regex: Regular expression pattern for matching timestamps
+
+        Returns:
+            Self for method chaining
+        """
+        self.timestamps[name] = regex
+        return self
+
+    def add_var(
+        self,
+        name: str,
+        regex: str,
+        hide_var_name_if_named_group_present: bool = True
+    ) -> "SchemaBuilder":
+        """
+        Add a variable pattern to the schema.
+
+        Args:
+            name: Variable name
+            regex: Regular expression pattern (supports (?<name>) capture groups)
+            hide_var_name_if_named_group_present: If True and capture groups exist,
+                hide the variable name from output
+
+        Returns:
+            Self for method chaining
+
+        Raises:
+            AttributeError: If variable name conflicts with existing names
+            ValueError: If variable/capture names contain delimiter characters
+        """
+        # Extract capture group names
         converted_regex = regex.replace("(?<", "(?P<")
         capture_group_names = set(re.compile(converted_regex).groupindex.keys())
 
-        if hide_var_name_if_named_group_present and len(capture_group_names) > 0:
-            # Want to create a random name with static prefix that we want to ignore later
-            # This should create random names that we can hide later
-            hidden_name = f"{LOG_SURGEON_HIDDEN_VARIABLE_PREFIX}{self.var_hidden_name_id}"
-            self.var_hidden_name_id += 1
+        # Generate hidden name if needed
+        if hide_var_name_if_named_group_present and capture_group_names:
+            hidden_name = f"{LOG_SURGEON_HIDDEN_VARIABLE_PREFIX}{self._var_hidden_name_id}"
+            self._var_hidden_name_id += 1
             self.var_hidden_names[name] = hidden_name
             name = hidden_name
 
         # Validate variable name
-        if name in self.var_names:
-            raise AttributeError(f'Variable "{name}" already exists and must be unique.')
-        if name in self.capture_group_names:
-            raise AttributeError(
-                f'Variable "{name}" cannot coexist with a capture group of the same name '
-                f'already defined in variable "{self.capture_group_names[name].name}".'
-            )
-        if any(char in name for char in self.decoded_delimiters):
-            raise ValueError(
-                f'Variable "{name}" contains characters that conflict with '
-                f'the specified delimiters: "{self.delimiters}"'
-            )
+        self._validate_variable_name(name)
 
         # Validate capture group names
-        for capture_group_name in capture_group_names:
-            if capture_group_name in self.var_names:
-                raise AttributeError(
-                    f'Capture group name "{capture_group_name}" in variable "{name}" '
-                    f'cannot coexist with another variable named "{capture_group_name}".'
-                )
-            if capture_group_name in self.capture_group_names:
-                raise AttributeError(
-                    f'Variable "{name}" defines a capture group "{capture_group_name}" that duplicates '
-                    f'a group already present in variable "{self.capture_group_names[name].name}".'
-                )
-            if any(char in capture_group_name for char in self.decoded_delimiters):
-                raise ValueError(
-                    f'Capture group "{capture_group_name}" in variable "{name}" '
-                    f'contains delimiter characters: "{self.delimiters}"'
-                )
+        self._validate_capture_groups(name, capture_group_names)
 
+        # Create and register variable
         var = Variable(name, regex, capture_group_names)
         self.vars.append(var)
         self.var_names[name] = var
@@ -74,13 +113,56 @@ class SchemaBuilder:
 
         return self
 
-    def remove_var(self, var_name: str):
-        # Resolve hidden name using mapping if available
-        hidden_name = self.var_hidden_names.get(var_name)
-        if hidden_name is not None:
-            var_name = hidden_name
+    def _validate_variable_name(self, name: str) -> None:
+        """Validate that a variable name doesn't conflict with existing names or delimiters."""
+        if name in self.var_names:
+            raise AttributeError(_VARIABLE_EXISTS_ERROR.format(name=name))
+        if name in self.capture_group_names:
+            raise AttributeError(_VARIABLE_CAPTURE_CONFLICT_ERROR.format(
+                name=name,
+                var_name=self.capture_group_names[name].name
+            ))
+        if any(char in name for char in self.decoded_delimiters):
+            raise ValueError(_VARIABLE_DELIMITER_CONFLICT_ERROR.format(
+                name=name,
+                delimiters=self.delimiters
+            ))
 
-        var = self.var_names.pop(var_name)
+    def _validate_capture_groups(self, var_name: str, capture_group_names: set[str]) -> None:
+        """Validate that capture group names don't conflict with existing names or delimiters."""
+        for capture_group_name in capture_group_names:
+            if capture_group_name in self.var_names:
+                raise AttributeError(_CAPTURE_VARIABLE_CONFLICT_ERROR.format(
+                    capture_name=capture_group_name,
+                    name=var_name
+                ))
+            if capture_group_name in self.capture_group_names:
+                raise AttributeError(_CAPTURE_DUPLICATE_ERROR.format(
+                    name=var_name,
+                    capture_name=capture_group_name,
+                    var_name=self.capture_group_names[var_name].name
+                ))
+            if any(char in capture_group_name for char in self.decoded_delimiters):
+                raise ValueError(_CAPTURE_DELIMITER_CONFLICT_ERROR.format(
+                    capture_name=capture_group_name,
+                    name=var_name,
+                    delimiters=self.delimiters
+                ))
+
+    def remove_var(self, var_name: str) -> "SchemaBuilder":
+        """
+        Remove a variable from the schema.
+
+        Args:
+            var_name: Name of the variable to remove (or its original name if hidden)
+
+        Returns:
+            Self for method chaining
+        """
+        # Resolve hidden name if applicable
+        actual_name = self.var_hidden_names.get(var_name, var_name)
+
+        var = self.var_names.pop(actual_name)
         self.vars.remove(var)
         for capture_group_name in var.capture_group_names:
             del self.capture_group_names[capture_group_name]
@@ -88,21 +170,49 @@ class SchemaBuilder:
         return self
 
     def get_var(self, var_name: str) -> Variable:
+        """
+        Get a variable by name.
+
+        Args:
+            var_name: Variable name
+
+        Returns:
+            The Variable object
+        """
         return self.var_names[var_name]
 
     def get_var_from_capture_group_name(self, capture_group_name: str) -> Variable:
+        """
+        Get a variable that contains a specific capture group.
+
+        Args:
+            capture_group_name: Name of the capture group
+
+        Returns:
+            The Variable object containing the capture group
+        """
         return self.capture_group_names[capture_group_name]
 
     def build(self) -> str:
-        # Schema delimiters
+        """
+        Build the final schema string.
+
+        Returns:
+            Schema definition string ready for use with the parser
+
+        Example:
+            >>> builder = SchemaBuilder()
+            >>> builder.add_var("MyVar", r"pattern (?<field>\\w+)")
+            >>> schema = builder.build()
+        """
         schema_sections = [f"// schema delimiters\ndelimiters:{self.delimiters}"]
 
-        # Timestamp entries
         if self.timestamps:
-            timestamp_entries = "\n".join(f"timestamp:{regex}" for regex in self.timestamps.values())
+            timestamp_entries = "\n".join(
+                f"timestamp:{regex}" for regex in self.timestamps.values()
+            )
             schema_sections.append(f"// schema timestamps\n{timestamp_entries}")
 
-        # Variable entries
         if self.vars:
             var_entries = "\n".join(f"{var.name}:{var.regex}" for var in self.vars)
             schema_sections.append(f"// schema variables\n{var_entries}")
