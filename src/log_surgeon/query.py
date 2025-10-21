@@ -1,7 +1,8 @@
 import io
-from typing import TYPE_CHECKING, TextIO, BinaryIO
+from typing import TYPE_CHECKING, TextIO, BinaryIO, Callable
 
 from log_surgeon.parser import Parser
+from log_surgeon.log_event import LogEvent
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -53,6 +54,36 @@ class Query:
         self.fields: list[str] | None = None
         self.stream: io.StringIO | io.BytesIO | None = None
         self.parser: Parser = parser
+        self.predicate: Callable[[LogEvent], bool] | None = None
+
+    def filter(self, predicate: Callable[[LogEvent], bool]) -> "Query":
+        """
+        Filter log events using a predicate function.
+
+        Args:
+            predicate: Function that takes a LogEvent and returns True to include it,
+                      False to exclude it from results
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> # Filter by field value
+            >>> query.filter(lambda event: int(event['value']) > 50)
+            >>>
+            >>> # Filter by multiple conditions
+            >>> query.filter(lambda event: event['level'] == 'ERROR' and 'exception' in event.get_log_message())
+            >>>
+            >>> # Filter with try/catch for missing fields
+            >>> def has_high_cpu(event):
+            ...     try:
+            ...         return int(event['cpu_usage']) > 80
+            ...     except (KeyError, ValueError):
+            ...         return False
+            >>> query.filter(has_high_cpu)
+        """
+        self.predicate = predicate
+        return self
 
     def select(self, fields: list[str]) -> "Query":
         """
@@ -200,7 +231,11 @@ class Query:
             raise ImportError(_DATAFRAME_IMPORT_ERROR)
 
         if self.fields and self.fields[0] == "*":
-            return pd.json_normalize(self.parser.parse(self.stream))
+            events = self.parser.parse(self.stream)
+            # Apply filter if set
+            if self.predicate is not None:
+                events = (event for event in events if self.predicate(event))
+            return pd.json_normalize(events)
 
         rows = self.get_rows(drop_null_rows)
         return pd.DataFrame(rows, columns=self.fields)
@@ -234,7 +269,11 @@ class Query:
             raise ImportError(_ARROW_IMPORT_ERROR)
 
         if self.fields and self.fields[0] == "*":
-            records = list(self.parser.parse(self.stream))
+            events = self.parser.parse(self.stream)
+            # Apply filter if set
+            if self.predicate is not None:
+                events = (event for event in events if self.predicate(event))
+            records = list(events)
             return pa.Table.from_pylist(records)
 
         rows = self.get_rows(drop_null_rows)
@@ -254,6 +293,10 @@ class Query:
         """
         rows = []
         for event in self.parser.parse(self.stream):
+            # Apply filter predicate if set
+            if self.predicate is not None and not self.predicate(event):
+                continue
+
             row = [event.get_capture_group_str_representation(field) for field in self.fields]
             if not drop_null_rows or not all(value is None for value in row):
                 rows.append(row)

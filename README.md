@@ -148,6 +148,39 @@ df = query.to_dataframe()
 print(df)
 ```
 
+### Filtering Events
+
+```python
+from log_surgeon import Parser, Query
+
+parser = Parser()
+parser.add_var("metric", r"metric=(?<metric_name>\w+) value=(?<value>\d+)")
+parser.compile()
+
+log_data = """
+2024-01-01 INFO: metric=cpu value=42
+2024-01-01 INFO: metric=memory value=100
+2024-01-01 INFO: metric=disk value=7
+2024-01-01 INFO: metric=cpu value=85
+"""
+
+# Filter events where value > 50
+query = (
+  Query(parser)
+  .select(["metric_name", "value"])
+  .from_(log_data)
+  .filter(lambda event: int(event['value']) > 50)
+  .validate_query()
+)
+
+df = query.to_dataframe()
+print(df)
+# Output:
+#   metric_name  value
+# 0      memory    100
+# 1         cpu     85
+```
+
 ## API Reference
 
 ### Parser
@@ -230,6 +263,12 @@ Query builder for parsing log events into structured data formats.
 - `select(fields: list[str]) -> Query`
   - Select fields to extract (use `["*"]` for all fields)
   - Returns self for method chaining
+
+- `filter(predicate: Callable[[LogEvent], bool]) -> Query`
+  - Filter log events using a predicate function
+  - Predicate receives a LogEvent and returns True to include it, False to exclude
+  - Returns self for method chaining
+  - Example: `query.filter(lambda event: int(event['value']) > 50)`
 
 - `from_(input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query`
   - Set the input source to parse
