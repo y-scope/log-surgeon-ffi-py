@@ -87,6 +87,9 @@ class Query:
             raise AttributeError('Query is empty')
         return self
 
+    def to_df(self, drop_null_rows: bool = True):
+        return self.to_dataframe(drop_null_rows=drop_null_rows)
+
     def to_dataframe(self, drop_null_rows: bool = True) -> "pd.DataFrame":
         """
         Convert parsed events to a pandas DataFrame.
@@ -108,6 +111,9 @@ class Query:
 
         rows = self.get_rows(drop_null_rows)
         return pd.DataFrame(rows, columns=self.fields)
+
+    def to_pa(self, drop_null_rows: bool = True) -> "pa.Table":
+        return self.to_arrow(drop_null_rows=drop_null_rows)
 
     def to_arrow(self, drop_null_rows: bool = True) -> "pa.Table":
         """
@@ -133,7 +139,6 @@ class Query:
         # Transpose rows for column-oriented storage
         columns = [[row[i] for row in rows] for i in range(len(self.fields))]
         return pa.Table.from_arrays([pa.array(col) for col in columns], names=self.fields)
-
 
     def get_rows(self, drop_null_rows: bool = True) -> list[list]:
         """
