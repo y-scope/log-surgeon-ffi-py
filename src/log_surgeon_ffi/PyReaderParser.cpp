@@ -526,12 +526,10 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                             get_py_token_array(py_var_dict, capture_name.c_str())
                     };
                     // TODO log surgeon currently does not support multicaptures.
-                    for (auto i{0}; i < 1 && i < start_positions.size() && i < end_positions.size();
-                         i++)
-                    {
+                    if (0 < start_positions.size() && 0 < end_positions.size()) {
                         auto capture_view{token_view};
-                        capture_view.m_start_pos = start_positions.at(i);
-                        capture_view.m_end_pos = end_positions.at(i);
+                        capture_view.m_start_pos = start_positions[0];
+                        capture_view.m_end_pos = end_positions[0];
                         PyObject* py_capture{
                                 PyUnicode_FromString(capture_view.to_string().c_str())
                         };
