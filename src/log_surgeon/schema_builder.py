@@ -1,30 +1,15 @@
 import re
 
 from log_surgeon.variable import Variable
+from log_surgeon.group_name_resolver import GroupNameResolver
 
-DEFAULT_DELIMITERS = " \t\r\n:,!;%@/\(\)\[\]"
+DEFAULT_DELIMITERS = r" \t\r\n:,!;%@/\(\)\[\]"
 LOG_SURGEON_HIDDEN_VARIABLE_PREFIX = "LogSurgeonHiddenVariables"
 
 _VARIABLE_EXISTS_ERROR = 'Variable "{name}" already exists and must be unique.'
-_VARIABLE_CAPTURE_CONFLICT_ERROR = (
-    'Variable "{name}" cannot coexist with a capture group of the same name '
-    'already defined in variable "{var_name}".'
-)
 _VARIABLE_DELIMITER_CONFLICT_ERROR = (
     'Variable "{name}" contains characters that conflict with '
     'the specified delimiters: "{delimiters}"'
-)
-_CAPTURE_VARIABLE_CONFLICT_ERROR = (
-    'Capture group name "{capture_name}" in variable "{name}" '
-    'cannot coexist with another variable named "{capture_name}".'
-)
-_CAPTURE_DUPLICATE_ERROR = (
-    'Variable "{name}" defines a capture group "{capture_name}" that duplicates '
-    'a group already present in variable "{var_name}".'
-)
-_CAPTURE_DELIMITER_CONFLICT_ERROR = (
-    'Capture group "{capture_name}" in variable "{name}" '
-    'contains delimiter characters: "{delimiters}"'
 )
 
 
@@ -45,12 +30,18 @@ class SchemaBuilder:
         self.delimiters: str = delimiters
         self.decoded_delimiters: str = delimiters.encode().decode('unicode_escape')
 
+        # We need to keep an order list of Variables as well as ones for quick lookup
         self.vars: list[Variable] = []
         self.var_names: dict[str, Variable] = {}
         self.var_hidden_names: dict[str, str] = {}
         self._var_hidden_name_id: int = 0
-        self.capture_group_names: dict[str, Variable] = {}
+
         self.timestamps: dict[str, str] = {}
+
+        self.capture_group_name_resolver: GroupNameResolver = GroupNameResolver("CGPrefix")
+
+    def get_capture_group_name_resolver(self):
+        return self.capture_group_name_resolver
 
     def add_timestamp(self, name: str, regex: str) -> "SchemaBuilder":
         """
@@ -90,10 +81,21 @@ class SchemaBuilder:
         """
         # Extract capture group names
         converted_regex = regex.replace("(?<", "(?P<")
-        capture_group_names = set(re.compile(converted_regex).groupindex.keys())
+        logical_capture_group_names = set(re.compile(converted_regex).groupindex.keys())
+
+        # Replace user-provided logical capture group name in regex pattern with
+        # auto-generated physical capture group name
+        for logical_capture_group_name in logical_capture_group_names:
+            physical_capture_group_name = (
+                self.capture_group_name_resolver.create_new_physical_name(logical_capture_group_name))
+            regex = re.sub(
+                rf"\(\?<{logical_capture_group_name}>",
+                f"(?<{physical_capture_group_name}>",
+                regex
+            )
 
         # Generate hidden name if needed
-        if hide_var_name_if_named_group_present and capture_group_names:
+        if hide_var_name_if_named_group_present and logical_capture_group_names:
             hidden_name = f"{LOG_SURGEON_HIDDEN_VARIABLE_PREFIX}{self._var_hidden_name_id}"
             self._var_hidden_name_id += 1
             self.var_hidden_names[name] = hidden_name
@@ -102,14 +104,10 @@ class SchemaBuilder:
         # Validate variable name
         self._validate_variable_name(name)
 
-        # Validate capture group names
-        self._validate_capture_groups(name, capture_group_names)
-
         # Create and register variable
-        var = Variable(name, regex, capture_group_names)
+        var = Variable(name, regex, logical_capture_group_names)
         self.vars.append(var)
         self.var_names[name] = var
-        self.capture_group_names[name] = var
 
         return self
 
@@ -117,37 +115,11 @@ class SchemaBuilder:
         """Validate that a variable name doesn't conflict with existing names or delimiters."""
         if name in self.var_names:
             raise AttributeError(_VARIABLE_EXISTS_ERROR.format(name=name))
-        if name in self.capture_group_names:
-            raise AttributeError(_VARIABLE_CAPTURE_CONFLICT_ERROR.format(
-                name=name,
-                var_name=self.capture_group_names[name].name
-            ))
         if any(char in name for char in self.decoded_delimiters):
             raise ValueError(_VARIABLE_DELIMITER_CONFLICT_ERROR.format(
                 name=name,
                 delimiters=self.delimiters
             ))
-
-    def _validate_capture_groups(self, var_name: str, capture_group_names: set[str]) -> None:
-        """Validate that capture group names don't conflict with existing names or delimiters."""
-        for capture_group_name in capture_group_names:
-            if capture_group_name in self.var_names:
-                raise AttributeError(_CAPTURE_VARIABLE_CONFLICT_ERROR.format(
-                    capture_name=capture_group_name,
-                    name=var_name
-                ))
-            if capture_group_name in self.capture_group_names:
-                raise AttributeError(_CAPTURE_DUPLICATE_ERROR.format(
-                    name=var_name,
-                    capture_name=capture_group_name,
-                    var_name=self.capture_group_names[var_name].name
-                ))
-            if any(char in capture_group_name for char in self.decoded_delimiters):
-                raise ValueError(_CAPTURE_DELIMITER_CONFLICT_ERROR.format(
-                    capture_name=capture_group_name,
-                    name=var_name,
-                    delimiters=self.delimiters
-                ))
 
     def remove_var(self, var_name: str) -> "SchemaBuilder":
         """
@@ -164,8 +136,6 @@ class SchemaBuilder:
 
         var = self.var_names.pop(actual_name)
         self.vars.remove(var)
-        for capture_group_name in var.capture_group_names:
-            del self.capture_group_names[capture_group_name]
 
         return self
 
@@ -180,18 +150,6 @@ class SchemaBuilder:
             The Variable object
         """
         return self.var_names[var_name]
-
-    def get_var_from_capture_group_name(self, capture_group_name: str) -> Variable:
-        """
-        Get a variable that contains a specific capture group.
-
-        Args:
-            capture_group_name: Name of the capture group
-
-        Returns:
-            The Variable object containing the capture group
-        """
-        return self.capture_group_names[capture_group_name]
 
     def build(self) -> str:
         """

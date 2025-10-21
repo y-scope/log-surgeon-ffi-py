@@ -120,8 +120,8 @@ if __name__ == '__main__':
     # The first step is to specify the schema used for labeling, extraction and templating
     # We define a variable name, and a regular expression with a named capture group.
     schema_builder = SchemaBuilder()
-    schema_builder.add_var("MemoryStore",
-                           "MemoryStore started with capacity (?<MemoryStoreCapacityGiB>\d+\.\d+) GiB")
+    schema_builder.add_var("memoryStore",
+                           "MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB")
     parser.load_schema(schema_builder.build())
 
     # Before we parse anything, log-surgeon will jit-compile a model similar to re.compile
@@ -131,18 +131,18 @@ if __name__ == '__main__':
     # and also generates
     print("#######################################################")
     print(f"Message: {event.get_log_message().strip()}")
-    print(f"\t@LogType -> {event.get_log_type()}")
-    print(f"\tMemoryStoreCapacityGiB -> {event['MemoryStoreCapacityGiB']}")
+    print(f"\t@LogType -> {event.get_log_type(schema_builder.get_capture_group_name_resolver())}")
+    print(f"\tmemory_store_capacity_GiB -> {event.get_capture_group('memory_store_capacity_GiB', schema_builder.get_capture_group_name_resolver())}")
 
     # Let's iterate on this example log and extract 3 platform variables: level, thread, component
-    schema_builder.add_var("Platform",
-                           "(?<level>(INFO)|(WARN)|(ERROR)) \[(?<thread>.+)\] (?<component>.+):")
+    schema_builder.add_var("platform",
+                           r"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] (?<platform_component>.+):")
     parser.load_schema(schema_builder.build())
     event = parser.parse_event(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
     print("#######################################################")
     print(f"Message: {event.get_log_message().strip()}")
-    print(f"\t@LogType -> {event.get_log_type()}")
-    print(f"\tlevel -> {event['level']}")
-    print(f"\tthread -> {event['thread']}")
-    print(f"\tcomponent -> {event['component']}")
-    print(f"\tMemoryStoreCapacityGiB -> {event['MemoryStoreCapacityGiB']}")
+    print(f"\t@LogType -> {event.get_log_type(schema_builder.get_capture_group_name_resolver())}")
+    print(f"\tplatform_level -> {event.get_capture_group('platform_level', schema_builder.get_capture_group_name_resolver())}")
+    print(f"\tplatform_thread -> {event.get_capture_group('platform_thread', schema_builder.get_capture_group_name_resolver())}")
+    print(f"\tplatform_component -> {event.get_capture_group('platform_component', schema_builder.get_capture_group_name_resolver())}")
+    print(f"\tmemory_store_capacity_GiB -> {event.get_capture_group('memory_store_capacity_GiB', schema_builder.get_capture_group_name_resolver())}")

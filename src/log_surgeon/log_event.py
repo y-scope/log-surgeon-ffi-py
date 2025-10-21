@@ -1,4 +1,7 @@
 import json
+import re
+
+from log_surgeon.group_name_resolver import GroupNameResolver
 
 
 class LogEvent:
@@ -13,6 +16,7 @@ class LogEvent:
         """Initialize an empty LogEvent."""
         self._log_message: str = ""
         self._var_dict: dict[str, str | list[str | int | float]] = {}
+        self._group_name_resolver: GroupNameResolver | None = None
 
     def get_log_message(self) -> str:
         """
@@ -23,91 +27,71 @@ class LogEvent:
         """
         return self._log_message
 
-    def get_log_type(self) -> str:
+    def get_log_type(self, group_name_resolver: GroupNameResolver) -> str:
         """
-        Get the log type (template) for this event.
+        Get the log type (template) for this event with resolved group names.
+
+        Args:
+            group_name_resolver: Resolver to map physical names to logical names
 
         Returns:
-            The log type string with placeholders for variable fields
+            The log type string with placeholders for variable fields,
+            prefixed with <timestamp> and with logical group names resolved
         """
-        return self._var_dict['@LogType']
+        def resolve_physical_group_name(match):
+            physical_group_name = match.group(1)
+            logical_group_name = group_name_resolver.get_logical_name(physical_group_name)
+            return f"<{logical_group_name}>"
 
-    def get_variable(
+        resolved_logtype = re.sub(
+            r"<(CGPrefix\d+)>",
+            resolve_physical_group_name,
+            self._var_dict['@LogType']
+        )
+        return f"<timestamp>{resolved_logtype}"
+
+    def get_capture_group(
         self,
-        variable_name: str,
+        logical_capture_group_name: str,
+        group_name_resolver: GroupNameResolver,
         raw_output: bool = False
     ) -> str | list[str | int | float] | None:
         """
-        Get the value of a variable extracted from the log event.
+        Get the value of a capture group by its logical name.
 
         Args:
-            variable_name: Name of the variable to retrieve
+            logical_capture_group_name: Logical (user-defined) name of the capture group
+            group_name_resolver: Resolver to map logical names to physical names
             raw_output: If True, always return the raw list. If False (default),
                 return unwrapped value for single-element lists
 
         Returns:
-            - For @LogType: the log type string
-            - For variables with no values: None
-            - For variables with single value (raw_output=False): the unwrapped value
+            - For @LogType: the resolved log type string
+            - For capture groups with no values: None
+            - For capture groups with single value (raw_output=False): the unwrapped value
             - Otherwise: list of values
 
         Example:
-            >>> event['thread']  # Single value
+            >>> event.get_capture_group('thread', resolver)  # Single value
             'main'
-            >>> event.get_variable('thread', raw_output=True)
+            >>> event.get_capture_group('thread', resolver, raw_output=True)
             ['main']
-            >>> event['errors']  # Multiple values
+            >>> event.get_capture_group('errors', resolver)  # Multiple values
             ['error1', 'error2']
         """
-        val = self._var_dict.get(variable_name)
+        # Special case: @LogType returns the resolved log type
+        if logical_capture_group_name == "@LogType":
+            return self.get_log_type(group_name_resolver)
 
-        # @LogType is always a string, not a list
-        if variable_name == "@LogType":
-            return val
+        # Look up all physical names for this logical name
+        for physical_group_name in group_name_resolver.get_physical_names(logical_capture_group_name):
+            value = self._var_dict.get(physical_group_name)
+            if value:
+                if raw_output or len(value) > 1:
+                    return value
+                return value[0]
 
-        if not val:  # Covers both None and empty list
-            return None
-
-        if raw_output or len(val) != 1:
-            return val
-
-        return val[0]
-
-    def get_variable_str(self, variable_name: str) -> str | None:
-        """
-        Get the value of a variable as a comma-separated string.
-
-        Args:
-            variable_name: Name of the variable to retrieve
-
-        Returns:
-            Comma-separated string of all values, or None if variable doesn't exist
-
-        Example:
-            >>> event.get_variable_str('ids')  # ids = [1, 2, 3]
-            '1,2,3'
-        """
-        values = self._var_dict.get(variable_name)
-
-        if not values:
-            return None
-
-        return ",".join(map(str, values))
-
-    def __getitem__(self, variable_name: str) -> str | list[str | int | float] | None:
-        """
-        Get a variable value using dictionary-style access.
-
-        Args:
-            variable_name: Name of the variable
-
-        Returns:
-            Variable value (unwrapped if single value)
-
-        Example:
-            >>> event['field_name']
-        """
-        return self.get_variable(variable_name, raw_output=False)
+        return None
 
     def __str__(self) -> str:
         """
@@ -124,7 +108,7 @@ class LogEvent:
             }
         """
         return json.dumps(
-            {key: self.get_variable(key) for key in self._var_dict},
+            {key: self.get_capture_group(key) for key in self._var_dict},
             indent=2
         )
 
