@@ -35,44 +35,16 @@ dev = [
     "yamllint>=1.35.1",
 ]
 
-# [tool.cibuildwheel]
-# # NOTE: The wheels to be built (and skipped) must be kept in-sync with the GitHub workflow. The GH
-# # workflow doesn't use pyproject.toml to determine which wheels to build, but instead uses
-# # environment variables so that it can build the wheels in parallel jobs.
+[tool.cibuildwheel]
+build = "cp*-manylinux_x86_64"
+build-verbosity = 1
+before-build = """
+  sh -c "$(curl -sSL https://taskfile.dev/install.sh)" -- -d
+  export PATH="$PWD/bin:$PATH"
+  task deps:install-all
+"""
 
-# # Use `musllinux_1_2` to support C++20 compilation
-# musllinux-aarch64-image = "musllinux_1_2"
-# musllinux-i686-image = "musllinux_1_2"
-# musllinux-ppc64le-image = "musllinux_1_2"
-# musllinux-s390x-image = "musllinux_1_2"
-# musllinux-x86_64-image = "musllinux_1_2"
-
-# skip = "pp*"
-
-# test-command = [
-#   "python -m unittest discover --failfast --verbose --start-directory={package}/tests"
-# ]
-# test-requires = [
-#     "smart_open==6.4.0"
-# ]
-# test-skip = [
-#     "cp39-*",
-#     "cp310-*",
-#     "*-*linux_i686",
-# ]
-
-# [tool.cibuildwheel.linux]
-# archs = ["auto", "aarch64"]
-
-# [tool.cibuildwheel.macos]
-# archs = ["x86_64", "universal2", "arm64"]
-
-# [tool.cibuildwheel.macos.environment]
-# # We need 10.15 since CLP core uses std::from_chars.
-# MACOSX_DEPLOYMENT_TARGET = "10.15"
-
-# [tool.cibuildwheel.windows]
-# archs = ["AMD64"]
+skip = "pp*"
 
 [tool.mypy]
 strict = true
