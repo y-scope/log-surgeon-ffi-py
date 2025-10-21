@@ -78,22 +78,44 @@ print(f"Capacity: {event['memory_store_capacity_GiB']}")
 ### Stream Parsing
 
 ```python
-import io
 from log_surgeon import Parser
 
 parser = Parser()
 parser.add_var("metric", r"value=(?<value>\d+)")
 parser.compile()
 
-# Parse multiple events from a stream
+# Parse from string (automatically wrapped in StringIO)
 log_data = """
 2024-01-01 INFO: Processing metric value=42
 2024-01-01 INFO: Processing metric value=100
 2024-01-01 INFO: Processing metric value=7
 """
 
-for event in parser.parse(io.StringIO(log_data)):
+for event in parser.parse(log_data):
   print(f"Value: {event['value']}")
+
+# Or parse from file object directly
+with open("logs.txt", "r") as f:
+  for event in parser.parse(f):
+    print(f"Value: {event['value']}")
+```
+
+### Using Pattern Constants
+
+```python
+from log_surgeon import Parser, Pattern
+
+parser = Parser()
+parser.add_var("network", rf"IP: (?<ip>{Pattern.IPV4}) UUID: (?<id>{Pattern.UUID})")
+parser.add_var("metrics", rf"value=(?<value>{Pattern.FLOAT})")
+parser.compile()
+
+log_line = "IP: 192.168.1.1 UUID: 550e8400-e29b-41d4-a716-446655440000 value=42.5"
+event = parser.parse_event(log_line)
+
+print(f"IP: {event['ip']}")
+print(f"UUID: {event['id']}")
+print(f"Value: {event['value']}")
 ```
 
 ### Export to DataFrame
@@ -150,25 +172,23 @@ High-level parser for extracting structured data from unstructured log messages.
   - Add a timestamp pattern to the parser's schema
   - Returns self for method chaining
 
-- `compile() -> None`
+- `compile(enable_debug_logs: bool = False) -> None`
   - Build and initialize the parser with the configured schema
   - Must be called after adding variables and before parsing
+  - Set `enable_debug_logs=True` to output debug information to stderr
 
 - `load_schema(schema: str, group_name_resolver: GroupNameResolver) -> None`
   - Load a pre-built schema string to configure the parser
 
+- `parse(input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Generator[LogEvent, None, None]`
+  - Parse all log events from a string, file object, or stream
+  - Accepts strings, text/binary file objects, StringIO, or BytesIO
+  - Yields LogEvent objects for each parsed event
+
 - `parse_event(payload: str) -> LogEvent | None`
-  - Parse a single log event from a string
+  - Parse a single log event from a string (convenience method)
+  - Wraps `parse()` and returns the first event
   - Returns LogEvent or None if no event found
-
-- `parse(input_stream: io.StringIO | io.BytesIO) -> Generator[LogEvent, None, None]`
-  - Parse all log events from an input stream
-  - Yields LogEvent objects for each parsed event
-
-- `parse_file(file_path: str) -> Generator[LogEvent, None, None]`
-  - Parse all log events from a file
-  - Convenience method that handles file opening automatically
-  - Yields LogEvent objects for each parsed event
 
 ### LogEvent
 
@@ -289,6 +309,39 @@ Bidirectional mapping between logical (user-defined) and physical (auto-generate
 
 - `get_logical_name(physical_name: str) -> str`
   - Get the logical name for a physical name
+
+### Pattern
+
+Collection of common regex patterns for log parsing.
+
+#### Class Attributes
+
+- `Pattern.UUID`
+  - Pattern for UUID (Universally Unique Identifier) strings
+
+- `Pattern.IP_OCTET`
+  - Pattern for a single IPv4 octet (0-255)
+
+- `Pattern.IPV4`
+  - Pattern for IPv4 addresses
+
+- `Pattern.INT`
+  - Pattern for integer numbers (with optional negative sign)
+
+- `Pattern.FLOAT`
+  - Pattern for floating-point numbers (with optional negative sign)
+
+#### Example Usage
+
+```python
+from log_surgeon import Parser, Pattern
+
+parser = Parser()
+parser.add_var("ip", rf"IP: (?<ip_address>{Pattern.IPV4})")
+parser.add_var("id", rf"ID: (?<uuid>{Pattern.UUID})")
+parser.add_var("value", rf"value=(?<val>{Pattern.FLOAT})")
+parser.compile()
+```
 
 ## Key Concepts
 

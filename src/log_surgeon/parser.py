@@ -88,8 +88,17 @@ class Parser:
         This method compiles the schema and creates the underlying ReaderParser.
         Must be called after adding variables and before parsing.
 
+        Args:
+            enable_debug_logs: If True, output debug information to stderr during
+                compilation and parsing operations. Default is False.
+
         Raises:
             May raise exceptions if schema compilation fails
+
+        Example:
+            >>> parser = Parser()
+            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
+            >>> parser.compile(enable_debug_logs=True)  # Enable debug mode
         """
         self._parser = ReaderParser(
             io.BytesIO(),
@@ -112,6 +121,8 @@ class Parser:
         """
         Parse a single log event from a string payload.
 
+        This is a convenience method that wraps parse() and returns the first event.
+
         Args:
             payload: Log message string to parse
 
@@ -120,10 +131,18 @@ class Parser:
 
         Raises:
             RuntimeError: If parser is not initialized with a schema
+
+        Example:
+            >>> parser = Parser()
+            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
+            >>> parser.compile()
+            >>> event = parser.parse_event("Processing value=42")
+            >>> print(event['value'])
+            42
         """
-        self._ensure_initialized()
-        self._parser.reset_input_stream(io.StringIO(payload))
-        return self._parser.parse_next_log_event()
+        for event in self.parse(payload):
+            return event
+        return None
 
     def parse(
         self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO
@@ -187,34 +206,6 @@ class Parser:
         self._parser.reset_input_stream(input_stream)
         while (event := self._parser.parse_next_log_event()) is not None:
             yield event
-
-    def parse_file(self, file_path: str) -> Generator[LogEvent, None, None]:
-        """
-        Parse all log events from a file.
-
-        Convenience method that opens a file and parses its contents.
-        The file is read in binary mode and automatically converted to a BytesIO stream.
-
-        Args:
-            file_path: Path to the log file to parse
-
-        Yields:
-            LogEvent objects for each parsed event
-
-        Raises:
-            RuntimeError: If parser is not initialized with a schema
-            FileNotFoundError: If the file does not exist
-            IOError: If the file cannot be read
-
-        Example:
-            >>> parser = Parser()
-            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-            >>> parser.compile()
-            >>> for event in parser.parse_file("logs.txt"):
-            ...     print(event['value'])
-        """
-        with open(file_path, "rb") as file:
-            yield from self.parse(io.BytesIO(file.read()))
 
     def _ensure_initialized(self) -> None:
         """
