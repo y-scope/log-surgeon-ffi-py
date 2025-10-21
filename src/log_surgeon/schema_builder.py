@@ -4,7 +4,7 @@ import re
 
 from log_surgeon.variable import Variable
 
-DEFAULT_DELIMITERS = " \\t\\r\\n:,!;%@/"
+DEFAULT_DELIMITERS = " \t\r\n:,!;%@/\(\)\[\]"
 LOG_SURGEON_HIDDEN_VARIABLE_PREFIX = "LogSurgeonHiddenVariables"
 
 class SchemaBuilder:
@@ -18,7 +18,6 @@ class SchemaBuilder:
         self.var_hidden_name_id = 0
         self.capture_group_names: dict[str, Variable] = {}
         self.timestamps: dict[str, str] = {}
-
 
     def add_timestamp(self, name: str, regex: str):
         self.timestamps[name] = regex
