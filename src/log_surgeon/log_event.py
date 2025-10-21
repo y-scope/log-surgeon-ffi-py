@@ -113,6 +113,13 @@ class LogEvent:
         for key, value in self._var_dict.items():
             if key == "@LogType":
                 continue
+            if key in ["firstTimestamp", "timestamp", "newLineTimestamp"]:
+                if len(value) > 1:
+                    resolved_dict["timestamp"] = value
+                else:
+                    resolved_dict["timestamp"] = value[0]
+                continue
+
             logical_name = self._group_name_resolver.get_logical_name(key)
             if value:
                 if len(value) > 1:

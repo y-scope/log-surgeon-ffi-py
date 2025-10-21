@@ -19,10 +19,10 @@ class Parser:
     and generate log types from raw log text.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, delimiters=r" \t\r\n:,!;%@/\(\)\[\]") -> None:
         """Initialize the parser."""
         self._parser: ReaderParser | None = None
-        self._schema_builder: SchemaBuilder = SchemaBuilder()
+        self._schema_builder: SchemaBuilder = SchemaBuilder(delimiters)
 
     def add_var(
         self,
@@ -43,6 +43,10 @@ class Parser:
             Self for method chaining
         """
         self._schema_builder.add_var(name, regex, hide_var_name_if_named_group_present)
+        return self
+
+    def add_timestamp(self, name: str, regex: str):
+        self._schema_builder.add_timestamp(name, regex)
         return self
 
     def build(self) -> None:
