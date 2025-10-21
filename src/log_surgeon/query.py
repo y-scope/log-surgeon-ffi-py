@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO, BinaryIO
 
 from log_surgeon.parser import Parser
 
@@ -71,6 +71,73 @@ class Query:
             raise AttributeError("You cannot combine \"*\" with other field names.")
 
         self.fields = fields
+        return self
+
+    def select_from(self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> "Query":
+        """
+        Alias for from_().
+
+        Args:
+            input: Input data to parse. Can be:
+                - str: Plain string containing log data
+                - TextIO: Text file object (opened in text mode)
+                - BinaryIO: Binary file object (opened in binary mode)
+                - io.StringIO: String buffer
+                - io.BytesIO: Bytes buffer
+
+        Returns:
+            Self for method chaining
+        """
+        return self.from_(input)
+
+    def from_(self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> "Query":
+        """
+        Set the input source to parse.
+
+        Args:
+            input: Input data to parse. Can be:
+                - str: Plain string containing log data
+                - TextIO: Text file object (opened in text mode)
+                - BinaryIO: Binary file object (opened in binary mode)
+                - io.StringIO: String buffer
+                - io.BytesIO: Bytes buffer
+
+        Returns:
+            Self for method chaining
+
+        Raises:
+            TypeError: If input type is not supported
+
+        Example:
+            >>> query = Query(parser).select(["value"])
+            >>> query.from_("log data here")
+            >>> # Or from file
+            >>> with open("logs.txt", "r") as f:
+            ...     query.from_(f)
+        """
+        # Validate and convert input type
+        if isinstance(input, str):
+            input_stream = io.StringIO(input)
+        elif isinstance(input, (io.StringIO, io.BytesIO)):
+            input_stream = input
+        elif hasattr(input, "read"):
+            # Handle file objects (TextIO or BinaryIO)
+            content = input.read()
+            if isinstance(content, bytes):
+                input_stream = io.BytesIO(content)
+            elif isinstance(content, str):
+                input_stream = io.StringIO(content)
+            else:
+                raise TypeError(
+                    f"File object returned unsupported type {type(content).__name__}"
+                )
+        else:
+            raise TypeError(
+                f"Input must be str, file object, io.StringIO, or io.BytesIO, "
+                f"got {type(input).__name__}"
+            )
+
+        self.stream = input_stream
         return self
 
     def from_stream(self, stream: io.StringIO | io.BytesIO) -> "Query":
@@ -202,12 +269,11 @@ if __name__ == "__main__":
     parser.compile()
 
     log_data = " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB"
-    input_stream = io.StringIO(log_data)
 
     query = (
         Query(parser)
         .select(["memory_store_capacity_GiB"])
-        .from_stream(input_stream)
+        .from_stream(log_data)
         .validate_query()
     )
 
@@ -218,8 +284,7 @@ if __name__ == "__main__":
     print()
 
     # Reset stream for second export
-    input_stream = io.StringIO(log_data)
-    query.from_stream(input_stream)
+    query.from_stream(log_data)
 
     # Export to PyArrow Table
     arrow_table = query.to_arrow(drop_null_rows=True)

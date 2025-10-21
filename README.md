@@ -121,7 +121,6 @@ print(f"Value: {event['value']}")
 ### Export to DataFrame
 
 ```python
-import io
 from log_surgeon import Parser, Query
 
 parser = Parser()
@@ -141,7 +140,7 @@ log_data = """
 query = (
   Query(parser)
   .select(["metric_name", "value"])
-  .from_stream(io.StringIO(log_data))
+  .from_(log_data)
   .validate_query()
 )
 
@@ -232,8 +231,19 @@ Query builder for parsing log events into structured data formats.
   - Select fields to extract (use `["*"]` for all fields)
   - Returns self for method chaining
 
+- `from_(input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query`
+  - Set the input source to parse
+  - Accepts strings, text/binary file objects, StringIO, or BytesIO
+  - Strings are automatically wrapped in StringIO
+  - Returns self for method chaining
+
+- `select_from(input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query`
+  - Alias for `from_()`
+  - Returns self for method chaining
+
 - `from_stream(stream: io.StringIO | io.BytesIO) -> Query`
-  - Set the input stream to parse
+  - Set the input stream to parse (legacy method)
+  - Consider using `from_()` for more flexible input handling
   - Returns self for method chaining
 
 - `validate_query() -> Query`

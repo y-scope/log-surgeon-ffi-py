@@ -516,7 +516,7 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     PyObject* py_capture_array{
                             get_py_token_array(py_var_dict, capture_name.c_str())
                     };
-                    for (auto i{0}; i < start_positions.size(); i++) {
+                    for (auto i{0}; i < start_positions.size() && i < end_positions.size(); i++) {
                         auto capture_view{token_view};
                         capture_view.m_start_pos = *(start_positions.crbegin() + i);
                         capture_view.m_end_pos = end_positions.at(i);
