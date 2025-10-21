@@ -102,6 +102,9 @@ class SchemaCompiler:
         # Extract capture group names
         converted_regex = regex.replace("(?<", "(?P<")
         logical_capture_group_names = set(re.compile(converted_regex).groupindex.keys())
+        if len(logical_capture_group_names) < 1:
+            raise ValueError(f"Pattern requires at least one named capture group (e.g., (?<name>...). "
+                             f"Provided: {regex}")
 
         # Replace user-provided logical capture group name in regex pattern with
         # auto-generated physical capture group name

@@ -26,6 +26,7 @@ from .parser import Parser
 from .query import Query
 from .log_event import LogEvent
 from .group_name_resolver import GroupNameResolver
+from .pattern import Pattern
 
 __all__ = [
     "Parser",
@@ -33,4 +34,5 @@ __all__ = [
     "SchemaCompiler",
     "LogEvent",
     "GroupNameResolver",
+    "Pattern",
 ]

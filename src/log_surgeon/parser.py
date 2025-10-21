@@ -1,7 +1,7 @@
 """High-level parser for extracting structured data from unstructured log messages."""
 
 import io
-from typing import Generator
+from typing import BinaryIO, Generator, TextIO
 
 from log_surgeon.group_name_resolver import GroupNameResolver
 from log_surgeon.schema_compiler import SchemaCompiler
@@ -41,6 +41,10 @@ class Parser:
         """
         self._parser: ReaderParser | None = None
         self._schema_compiler: SchemaCompiler = SchemaCompiler(delimiters)
+        self._enable_debug = False
+
+    def enable_debug(self, enable_debug: bool = True):
+        self._enable_debug = enable_debug
 
     def add_var(
         self,
@@ -93,7 +97,8 @@ class Parser:
         self._parser = ReaderParser(
             io.BytesIO(),
             self._schema_compiler.compile(),
-            self._schema_compiler.get_capture_group_name_resolver()
+            self._schema_compiler.get_capture_group_name_resolver(),
+            self._enable_debug
         )
 
     def load_schema(self, schema: str, group_name_resolver: GroupNameResolver) -> None:
@@ -123,27 +128,65 @@ class Parser:
         self._parser.reset_input_stream(io.StringIO(payload))
         return self._parser.parse_next_log_event()
 
-    def parse(self, input_stream: io.StringIO | io.BytesIO) -> Generator[LogEvent, None, None]:
+    def parse(
+        self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO
+    ) -> Generator[LogEvent, None, None]:
         """
-        Parse all log events from an input stream.
+        Parse all log events from an input stream, file object, or string.
 
         Args:
-            input_stream: Input stream containing log data
+            input: Input data to parse. Can be:
+                - str: Plain string containing log data
+                - TextIO: Text file object (opened in text mode)
+                - BinaryIO: Binary file object (opened in binary mode)
+                - io.StringIO: String buffer
+                - io.BytesIO: Bytes buffer
 
         Yields:
             LogEvent objects for each parsed event
 
         Raises:
             RuntimeError: If parser is not initialized with a schema
+            TypeError: If input type is not supported
 
         Example:
             >>> parser = Parser()
             >>> parser.add_var("metric", r"value=(?<value>\\d+)")
             >>> parser.compile()
-            >>> for event in parser.parse(io.StringIO("value=42\\nvalue=100")):
+            >>>
+            >>> # Parse from string
+            >>> for event in parser.parse("value=42\\nvalue=100"):
             ...     print(event['value'])
+            >>>
+            >>> # Parse from file object
+            >>> with open("logs.txt", "r") as f:
+            ...     for event in parser.parse(f):
+            ...         print(event['value'])
         """
         self._ensure_initialized()
+
+        # Validate and convert input type
+        if isinstance(input, str):
+            input_stream = io.StringIO(input)
+        elif isinstance(input, (io.StringIO, io.BytesIO)):
+            input_stream = input
+        elif hasattr(input, "read"):
+            # Handle file objects (TextIO or BinaryIO)
+            content = input.read()
+            if isinstance(content, bytes):
+                input_stream = io.BytesIO(content)
+            elif isinstance(content, str):
+                input_stream = io.StringIO(content)
+            else:
+                raise TypeError(
+                    f"File object returned unsupported type {type(content).__name__}"
+                )
+        else:
+            raise TypeError(
+                f"Input must be str, file object, io.StringIO, or io.BytesIO, "
+                f"got {type(input).__name__}"
+            )
+
         self._parser.reset_input_stream(input_stream)
         while (event := self._parser.parse_next_log_event()) is not None:
             yield event
