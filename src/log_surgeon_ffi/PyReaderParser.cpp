@@ -448,8 +448,11 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
     auto starting_token_idx{log_buf->has_timestamp() ? 0 : 1};
     for (auto token_idx{starting_token_idx}; token_idx < log_buf->pos(); token_idx++) {
         auto token_view{log_buf->get_token(token_idx)};
-        auto const token_type{token_view.m_type_ids_ptr->at(0)};
+        if (1 < token_idx || (1 == token_idx && true == log_buf->has_timestamp())) {
+            token_view.m_start_pos++;
+        }
 
+        auto const token_type{token_view.m_type_ids_ptr->at(0)};
         auto const token_name{log_parser.get_id_symbol(token_type)};
         auto token_str{token_view.to_string()};
         if (m_debug) {
