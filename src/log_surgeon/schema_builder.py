@@ -1,6 +1,6 @@
 from typing import List
 
-import pcre2
+import re
 
 from log_surgeon.variable import Variable
 
@@ -25,8 +25,8 @@ class SchemaBuilder:
 
     def add_var(self, name: str, regex: str, hide_var_name_if_named_group_present: bool = True):
         # Validate capture group names
-        regex_pattern = pcre2.compile(regex)
-        capture_group_names = set(regex_pattern.groupindex.keys())
+        converted_regex = regex.replace("(?<", "(?P<")
+        capture_group_names = set(re.compile(converted_regex).groupindex.keys())
 
         if hide_var_name_if_named_group_present and len(capture_group_names) > 0:
             # Want to create a random name with static prefix that we want to ignore later
@@ -51,8 +51,6 @@ class SchemaBuilder:
             )
 
         # Validate capture group names
-        regex_pattern = pcre2.compile(regex)
-        capture_group_names = set(regex_pattern.groupindex.keys())
         for capture_group_name in capture_group_names:
             if capture_group_name in self.var_names:
                 raise AttributeError(
