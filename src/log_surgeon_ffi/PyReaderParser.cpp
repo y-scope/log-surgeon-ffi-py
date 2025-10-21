@@ -476,7 +476,7 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                 auto const& lexer{event.get_log_parser().m_lexer};
                 auto capture_ids{lexer.get_capture_ids_from_rule_id(token_type)};
 
-                if (token_name.starts_with("LogSurgeonHiddenVariables")) {
+                if (false == token_name.starts_with("LogSurgeonHiddenVariables")) {
                     PyObject* py_token_str{PyUnicode_FromString(token_str.c_str())};
                     PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
                     if (-1 == PyList_Append(py_token_array, py_token_str)) {
