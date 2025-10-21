@@ -16,7 +16,6 @@
 #include <span>
 #include <string>
 #include <tuple>
-#include <type_traits>
 #include <utility>
 
 namespace log_surgeon_ffi {
@@ -157,31 +156,34 @@ LOG_SURGEON_FFI_METHOD auto
 PyReaderParser_init(PyReaderParser* self, PyObject* args, PyObject* keywords) -> int {
     static char keyword_input_stream[]{"input_stream"};
     static char keyword_schema_str[]{"schema_contents"};
+    static char keyword_debug[]{"debug"};
     static char const* keyword_table[]{
             static_cast<char*>(keyword_input_stream),
             static_cast<char*>(keyword_schema_str),
+            static_cast<char*>(keyword_debug),
             nullptr
     };
 
-    // TODO: is this really necessary? Ask Adrian/Zhihao.
-    // self->m_input_stream = nullptr; // need to set with public method
-
     PyObject* py_input_stream{};
     char const* schema_contents{};
+    int debug{0};
     if (false
         == static_cast<bool>(PyArg_ParseTupleAndKeywords(
                 args,
                 keywords,
-                "Os",
+                "Os|p",
                 const_cast<char**>(static_cast<char const**>(keyword_table)),
                 &py_input_stream,
-                &schema_contents
+                &schema_contents,
+                &debug
         )))
     {
+        // TODO: do we need to set our own exceptions here?
         return -1;
     }
 
-    if (false == self->init(py_input_stream, schema_contents)) {
+    if (false == self->init(py_input_stream, schema_contents, 1 == debug)) {
+        // TODO: do we need to set our own exceptions here?
         return -1;
     }
 
@@ -206,7 +208,6 @@ PyReaderParser_reset_input_stream(PyReaderParser* self, PyObject* args, PyObject
     {
         return PyBool_FromLong(0);
     }
-
     return self->reset_input_stream(py_input_stream) ? PyBool_FromLong(1) : PyBool_FromLong(0);
 }
 
@@ -226,15 +227,11 @@ LOG_SURGEON_FFI_METHOD auto PyReaderParser_dealloc(PyReaderParser* self) -> void
 auto get_py_token_array(PyObject* py_var_dict, char const* token_name) -> PyObject* {
     PyObject* py_token_name{PyUnicode_FromString(token_name)};
     if (nullptr == py_token_name) {
-        std::cerr << "failed token name"
-                     "\n";
         return nullptr;
     }
     PyObject* py_token_array{nullptr};
     auto contains_token_result{PyDict_Contains(py_var_dict, py_token_name)};
     if (-1 == contains_token_result) {
-        std::cerr << "failed contains"
-                     "\n";
         // TODO: throw
         return nullptr;
     }
@@ -243,8 +240,6 @@ auto get_py_token_array(PyObject* py_var_dict, char const* token_name) -> PyObje
     } else {
         py_token_array = PyList_New(0);
         if (-1 == PyDict_SetItem(py_var_dict, py_token_name, py_token_array)) {
-            std::cerr << "failed setitem"
-                         "\n";
             // TODO: throw
             return nullptr;
         }
@@ -254,7 +249,6 @@ auto get_py_token_array(PyObject* py_var_dict, char const* token_name) -> PyObje
 }  // namespace
 
 auto PyReaderParser::module_level_init(PyObject* py_module) -> bool {
-    // static_assert(std::is_trivially_destructible<PyReaderParser>());
     auto* type{py_reinterpret_cast<PyTypeObject>(PyType_FromSpec(&PyReaderParser_type_spec))};
     m_py_type.reset(type);
     if (nullptr == type) {
@@ -263,14 +257,15 @@ auto PyReaderParser::module_level_init(PyObject* py_module) -> bool {
     return add_python_type(get_py_type(), "ReaderParser", py_module);
 }
 
-auto PyReaderParser::init(PyObject* py_input_stream, char const* schema_content) -> bool {
+auto PyReaderParser::init(PyObject* py_input_stream, char const* schema_content, bool debug)
+        -> bool {
     // TODO use try catch + throw a py exception around log surgeon code
     // TODO review PyErr and exceptions on returns
 
+    m_debug = debug;
     m_parser = std::make_unique<log_surgeon::ReaderParser>(
             log_surgeon::SchemaParser::try_schema_string(schema_content)
     );
-
     return reset_input_stream(py_input_stream);
 
     // TODO: add error handling code?
@@ -382,7 +377,9 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
     }
 
     if (log_surgeon::ErrorCode::Success != m_parser->parse_next_event()) {
-        std::cerr << "log surgeon failed\n";
+        if (m_debug) {
+            std::cerr << "log surgeon failed\n";
+        }
         // TODO: throw
         return Py_None;
     }
@@ -430,8 +427,10 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
         return Py_None;
     }
 
-    std::cerr << "log message: '" << event.to_string() << "'\n";
-    std::cerr << "log type: '" << event.get_logtype().c_str() << "'\n";
+    if (m_debug) {
+        std::cerr << "log message: '" << event.to_string() << "'\n";
+        std::cerr << "log type: '" << event.get_logtype().c_str() << "'\n";
+    }
 
     auto const& log_buf = event.get_log_output_buffer();
     auto starting_token_idx{log_buf->has_timestamp() ? 0 : 1};
@@ -441,7 +440,9 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
 
         auto const token_name{log_parser.get_id_symbol(token_type)};
         auto token_str{token_view.to_string()};
-        std::cerr << "token name: " << token_name << " token: '" << token_str << "'\n";
+        if (m_debug) {
+            std::cerr << "token name: " << token_name << " token: '" << token_str << "'\n";
+        }
 
         switch (token_type) {
             case static_cast<int>(log_surgeon::SymbolId::TokenNewline):

@@ -67,7 +67,8 @@ public:
      * @return true on success.
      * @return false on failure with the relevant Python exception and error set.
      */
-    [[nodiscard]] auto init(PyObject* py_input_stream, char const* schema_content) -> bool;
+    [[nodiscard]] auto init(PyObject* py_input_stream, char const* schema_content, bool debug)
+            -> bool;
 
     /**
      * Deserializes the next key value pair log event from the IR stream.
@@ -103,6 +104,7 @@ private:
     static inline PyObjectStaticPtr<PyTypeObject> m_py_type{nullptr};
 
     PyObject_HEAD;
+    bool m_debug{false};
     PyObject* m_py_input_stream{nullptr};
     std::unique_ptr<log_surgeon::ReaderParser> m_parser;
 };
