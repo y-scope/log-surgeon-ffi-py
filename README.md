@@ -414,7 +414,7 @@ python -m pytest tests/
 ## Requirements
 
 - Python >= 3.9
-- C++17 compatible compiler
+- C++20 compatible compiler
 
 ## License
 
