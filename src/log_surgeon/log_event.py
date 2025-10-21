@@ -88,6 +88,13 @@ class LogEvent:
 
         return None
 
+    def get_capture_group_str_representation(
+        self,
+        logical_capture_group_name: str,
+        raw_output: bool = False
+    ) -> str:
+        return f"{self.get_capture_group(logical_capture_group_name, raw_output)}"
+
     def __str__(self) -> str:
         """
         Get a formatted JSON representation of the log event.

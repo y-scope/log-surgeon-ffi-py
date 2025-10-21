@@ -9,16 +9,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    "bidict"
+    "pandas",
+    "pyarrow",
 ]
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
-]
-
-[project.optional-dependencies]
-dataframe = [
-    "pandas",
-    "pyarrow",
 ]
 
 [project.urls]

@@ -152,7 +152,7 @@ class Query:
         """
         rows = []
         for event in self.parser.parse(self.stream):
-            row = [event.get_variable_str(field) for field in self.fields]
+            row = [event.get_capture_group_str_representation(field) for field in self.fields]
             if not drop_null_rows or not all(value is None for value in row):
                 rows.append(row)
         return rows
@@ -165,7 +165,8 @@ if __name__ == '__main__':
         "MemoryStore",
         r"MemoryStore started with capacity (?<MemoryStoreCapacityGiB>\d+\.\d+) GiB"
     )
-    parser = Parser(schema_builder.compile())
+    parser = Parser()
+    parser.load_schema(schema_builder.build(), schema_builder.get_capture_group_name_resolver())
 
     input_stream = io.StringIO(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
     query = (
