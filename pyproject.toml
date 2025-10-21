@@ -36,7 +36,17 @@ dev = [
 ]
 
 [tool.cibuildwheel]
-#build = "cp*-manylinux_x86_64"
+# NOTE: The wheels to be built (and skipped) must be kept in-sync with the GitHub workflow. The GH
+# workflow doesn't use pyproject.toml to determine which wheels to build, but instead uses
+# environment variables so that it can build the wheels in parallel jobs.
+
+# Use `musllinux_1_2` to support C++20 compilation
+musllinux-aarch64-image = "musllinux_1_2"
+musllinux-i686-image = "musllinux_1_2"
+musllinux-ppc64le-image = "musllinux_1_2"
+musllinux-s390x-image = "musllinux_1_2"
+musllinux-x86_64-image = "musllinux_1_2"
+
 build-verbosity = 1
 before-build = """
   sh -c "$(curl -sSL https://taskfile.dev/install.sh)" -- -d
@@ -45,6 +55,9 @@ before-build = """
 """
 
 skip = "pp*"
+
+[tool.cibuildwheel.linux]
+archs = ["auto", "aarch64"]
 
 [tool.mypy]
 strict = true
