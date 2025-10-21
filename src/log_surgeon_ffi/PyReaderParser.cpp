@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <iostream>
-#include <sstream>
 #include <log_surgeon/Constants.hpp>
 #include <log_surgeon/Reader.hpp>
 #include <log_surgeon/ReaderParser.hpp>
@@ -425,40 +424,28 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
         return Py_None;
     }
 
+    PyObject* py_logtype{PyUnicode_FromString(event.get_logtype().c_str())};
+    if (-1 == PyDict_SetItemString(py_var_dict, "@LogType", py_logtype)) {
+        // TODO: throw
+        return Py_None;
+    }
+
     std::cerr << "log message: '" << event.to_string() << "'\n";
+    std::cerr << "log type: '" << event.get_logtype().c_str() << "'\n";
 
-    std::string logtype;
-    logtype.reserve(event.to_string().size());
     auto const& log_buf = event.get_log_output_buffer();
-
     auto starting_token_idx{log_buf->has_timestamp() ? 0 : 1};
     for (auto token_idx{starting_token_idx}; token_idx < log_buf->pos(); token_idx++) {
         auto token_view{log_buf->get_token(token_idx)};
         auto const token_type{token_view.m_type_ids_ptr->at(0)};
-
-        // TODO ask Chris what case this covers in clp
-        // if (log_buf->has_delimiters() && (log_buf->has_timestamp() || token_idx > 1)
-        //     && token_type != static_cast<int>(log_surgeon::SymbolId::TokenUncaughtString)
-        //     && token_type != static_cast<int>(log_surgeon::SymbolId::TokenNewline))
-        // {
-        //     if (token_view.m_start_pos == token_view.m_buffer_size - 1) {
-        //         token_view.m_start_pos = 0;
-        //     } else {
-        //         token_view.m_start_pos++;
-        //     }
-        // }
 
         auto const token_name{log_parser.get_id_symbol(token_type)};
         auto token_str{token_view.to_string()};
         std::cerr << "token name: " << token_name << " token: '" << token_str << "'\n";
 
         switch (token_type) {
-            case static_cast<int>(log_surgeon::SymbolId::TokenNewline): {
-                logtype.append("<NewLine>");
-                break;
-            }
+            case static_cast<int>(log_surgeon::SymbolId::TokenNewline):
             case static_cast<int>(log_surgeon::SymbolId::TokenUncaughtString): {
-                logtype.append(token_str);
                 break;
             }
             case static_cast<int>(log_surgeon::SymbolId::TokenInt): {
@@ -474,7 +461,6 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                             return Py_None;
                         }
                 }
-                logtype.append("<int>");
                 break;
             }
             case static_cast<int>(log_surgeon::SymbolId::TokenFloat): {
@@ -490,7 +476,6 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                         return Py_None;
                     }
                 }
-                logtype.append("<float>");
                 break;
             }
             default: {
@@ -506,13 +491,9 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     }
                 }
                 if (false == capture_ids.has_value()) {
-                    logtype.append("<");
-                    logtype.append(token_name);
-                    logtype.append(">");
                     break;
                 }
 
-                auto logtype_token_view{token_view};
                 for (auto const capture_id : capture_ids.value()) {
                     auto const register_ids{lexer.get_reg_ids_from_capture_id(capture_id)};
                     if (false == register_ids.has_value()) {
@@ -523,17 +504,6 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     auto const [start_reg_id, end_reg_id]{register_ids.value()};
                     auto const start_positions{token_view.get_reversed_reg_positions(start_reg_id)};
                     auto const end_positions{token_view.get_reversed_reg_positions(end_reg_id)};
-
-//                     std::cerr << "DEBUG: '"
-//                               << logtype_token_view.to_string().substr(0, start_positions.back())
-//                               << "'\n";
-
-                    // * Instead of printing "variable_name:<capture group name>", we print "<capture group name"> only
-                    // Therefore we comment out the 3 lines below, and replaced it with "<space>" to pretty-print logtype
-//                    logtype.append(
-//                            logtype_token_view.to_string().substr(0, start_positions.back())
-//                    );
-                    logtype.append(" ");
 
                     auto capture_name{lexer.m_id_symbol.at(capture_id)};
                     PyObject* py_capture_array{
@@ -550,23 +520,11 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                             // TODO: throw
                             return Py_None;
                         }
-                        logtype.append("<");
-                        logtype.append(capture_name);
-                        logtype.append(">");
                     }
-                    logtype_token_view.m_start_pos = end_positions.back();
                 }
-                logtype.append(logtype_token_view.to_string_view());
                 break;
             }
         }
-    }
-
-    std::cerr << "log type: '" << logtype << "'\n";
-    PyObject* py_logtype{PyUnicode_FromString(logtype.c_str())};
-    if (-1 == PyDict_SetItemString(py_var_dict, "@LogType", py_logtype)) {
-        // TODO: throw
-        return Py_None;
     }
     return py_log_event;
 }
