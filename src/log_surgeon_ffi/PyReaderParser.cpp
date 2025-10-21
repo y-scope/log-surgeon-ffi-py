@@ -453,13 +453,10 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                 if (nullptr == py_token_long) {
                     py_token_long = PyUnicode_FromString(token_str.c_str());
                 }
-                // Skip hidden variables
-                if (token_name.rfind("LogSurgeonHiddenVariables", 0) != 0) {
-                    PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
-                        if (-1 == PyList_Append(py_token_array, py_token_long)) {
-                            // TODO: throw
-                            return Py_None;
-                        }
+                PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
+                if (-1 == PyList_Append(py_token_array, py_token_long)) {
+                    // TODO: throw
+                    return Py_None;
                 }
                 break;
             }
@@ -468,22 +465,19 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                 if (nullptr == py_token_float) {
                     py_token_float = PyUnicode_FromString(token_str.c_str());
                 }
-                // Skip hidden variables
-                if (token_name.rfind("LogSurgeonHiddenVariables", 0) != 0) {
-                    PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
-                    if (-1 == PyList_Append(py_token_array, py_token_float)) {
-                        // TODO: throw
-                        return Py_None;
-                    }
+                PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
+                if (-1 == PyList_Append(py_token_array, py_token_float)) {
+                    // TODO: throw
+                    return Py_None;
                 }
                 break;
             }
             default: {
                 auto const& lexer{event.get_log_parser().m_lexer};
                 auto capture_ids{lexer.get_capture_ids_from_rule_id(token_type)};
-                PyObject* py_token_str{PyUnicode_FromString(token_str.c_str())};
-                // Skip hidden variables
-                if (token_name.rfind("LogSurgeonHiddenVariables", 0) != 0) {
+
+                if (token_name.starts_with("LogSurgeonHiddenVariables")) {
+                    PyObject* py_token_str{PyUnicode_FromString(token_str.c_str())};
                     PyObject* py_token_array{get_py_token_array(py_var_dict, token_name.c_str())};
                     if (-1 == PyList_Append(py_token_array, py_token_str)) {
                         // TODO: throw
