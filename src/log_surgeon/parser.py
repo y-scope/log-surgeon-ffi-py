@@ -2,6 +2,7 @@ import io
 from pathlib import Path
 from typing import Generator
 
+from log_surgeon.group_name_resolver import GroupNameResolver
 from log_surgeon.log_event import LogEvent
 from log_surgeon_ffi import ReaderParser
 
@@ -18,40 +19,21 @@ class Parser:
     and generate log types from raw log text.
     """
 
-    def __init__(self, schema: str | None = None) -> None:
+    def __init__(self) -> None:
         """
         Initialize the parser with an optional schema.
-
-        Args:
-            schema: Optional schema string. If provided, parser is ready to use immediately
         """
         self._parser: ReaderParser | None = None
-        if schema:
-            self.load_schema(schema)
 
-    def load_schema_file(self, schema_file_path: str | Path) -> None:
-        """
-        Load a schema from a file.
 
-        Args:
-            schema_file_path: Path to the schema file
-
-        Raises:
-            FileNotFoundError: If the schema file doesn't exist
-            IOError: If there's an error reading the file
-        """
-        path = Path(schema_file_path)
-        with path.open("r", encoding="utf-8") as schema_file:
-            self.load_schema(schema_file.read())
-
-    def load_schema(self, schema: str) -> None:
+    def load_schema(self, schema: str, group_name_resolver: GroupNameResolver) -> None:
         """
         Load a schema string to configure the parser.
 
         Args:
             schema: Schema definition string
         """
-        self._parser = ReaderParser(io.BytesIO(), schema)
+        self._parser = ReaderParser(io.BytesIO(), schema, group_name_resolver)
 
     def parse_event(self, payload: str) -> LogEvent | None:
         """
@@ -122,7 +104,7 @@ if __name__ == '__main__':
     schema_builder = SchemaBuilder()
     schema_builder.add_var("memoryStore",
                            "MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB")
-    parser.load_schema(schema_builder.build())
+    parser.load_schema(schema_builder.build(), schema_builder.get_capture_group_name_resolver())
 
     # Before we parse anything, log-surgeon will jit-compile a model similar to re.compile
     event = parser.parse_event(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
@@ -131,18 +113,15 @@ if __name__ == '__main__':
     # and also generates
     print("#######################################################")
     print(f"Message: {event.get_log_message().strip()}")
-    print(f"\t@LogType -> {event.get_log_type(schema_builder.get_capture_group_name_resolver())}")
-    print(f"\tmemory_store_capacity_GiB -> {event.get_capture_group('memory_store_capacity_GiB', schema_builder.get_capture_group_name_resolver())}")
+    print(f"LogType -> {event.get_log_type()}")
+    print(f"Capture groups -> {event}")
 
     # Let's iterate on this example log and extract 3 platform variables: level, thread, component
     schema_builder.add_var("platform",
                            r"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] (?<platform_component>.+):")
-    parser.load_schema(schema_builder.build())
+    parser.load_schema(schema_builder.build(), schema_builder.get_capture_group_name_resolver())
     event = parser.parse_event(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
     print("#######################################################")
     print(f"Message: {event.get_log_message().strip()}")
-    print(f"\t@LogType -> {event.get_log_type(schema_builder.get_capture_group_name_resolver())}")
-    print(f"\tplatform_level -> {event.get_capture_group('platform_level', schema_builder.get_capture_group_name_resolver())}")
-    print(f"\tplatform_thread -> {event.get_capture_group('platform_thread', schema_builder.get_capture_group_name_resolver())}")
-    print(f"\tplatform_component -> {event.get_capture_group('platform_component', schema_builder.get_capture_group_name_resolver())}")
-    print(f"\tmemory_store_capacity_GiB -> {event.get_capture_group('memory_store_capacity_GiB', schema_builder.get_capture_group_name_resolver())}")
+    print(f"LogType -> {event.get_log_type()}")
+    print(f"Capture groups -> {event}")

@@ -27,12 +27,9 @@ class LogEvent:
         """
         return self._log_message
 
-    def get_log_type(self, group_name_resolver: GroupNameResolver) -> str:
+    def get_log_type(self) -> str:
         """
         Get the log type (template) for this event with resolved group names.
-
-        Args:
-            group_name_resolver: Resolver to map physical names to logical names
 
         Returns:
             The log type string with placeholders for variable fields,
@@ -40,7 +37,7 @@ class LogEvent:
         """
         def resolve_physical_group_name(match):
             physical_group_name = match.group(1)
-            logical_group_name = group_name_resolver.get_logical_name(physical_group_name)
+            logical_group_name = self._group_name_resolver.get_logical_name(physical_group_name)
             return f"<{logical_group_name}>"
 
         resolved_logtype = re.sub(
@@ -53,7 +50,6 @@ class LogEvent:
     def get_capture_group(
         self,
         logical_capture_group_name: str,
-        group_name_resolver: GroupNameResolver,
         raw_output: bool = False
     ) -> str | list[str | int | float] | None:
         """
@@ -61,7 +57,6 @@ class LogEvent:
 
         Args:
             logical_capture_group_name: Logical (user-defined) name of the capture group
-            group_name_resolver: Resolver to map logical names to physical names
             raw_output: If True, always return the raw list. If False (default),
                 return unwrapped value for single-element lists
 
@@ -81,10 +76,10 @@ class LogEvent:
         """
         # Special case: @LogType returns the resolved log type
         if logical_capture_group_name == "@LogType":
-            return self.get_log_type(group_name_resolver)
+            return self.get_log_type()
 
         # Look up all physical names for this logical name
-        for physical_group_name in group_name_resolver.get_physical_names(logical_capture_group_name):
+        for physical_group_name in self._group_name_resolver.get_physical_names(logical_capture_group_name):
             value = self._var_dict.get(physical_group_name)
             if value:
                 if raw_output or len(value) > 1:
@@ -107,10 +102,18 @@ class LogEvent:
               "field1": "value1"
             }
         """
-        return json.dumps(
-            {key: self.get_capture_group(key) for key in self._var_dict},
-            indent=2
-        )
+        resolved_dict = {}
+        for key, value in self._var_dict.items():
+            if key == "@LogType":
+                continue
+            logical_name = self._group_name_resolver.get_logical_name(key)
+            if value:
+                if len(value) > 1:
+                    resolved_dict[logical_name] = value
+                else:
+                    resolved_dict[logical_name] = value[0]
+
+        return json.dumps(resolved_dict, indent=2)
 
     def __repr__(self) -> str:
         """
