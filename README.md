@@ -33,10 +33,10 @@ from log_surgeon import Parser
 # Create a parser and define extraction patterns
 parser = Parser()
 parser.add_var(
-    "memoryStore",
-    r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
+  "memoryStore",
+  r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
 )
-parser.build()
+parser.compile()
 
 # Parse a log event
 log_line = " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n"
@@ -55,17 +55,17 @@ parser = Parser()
 
 # Extract platform information (level, thread, component)
 parser.add_var(
-    "platform",
-    r"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] (?<platform_component>.+):"
+  "platform",
+  r"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] (?<platform_component>.+):"
 )
 
 # Extract application-specific metrics
 parser.add_var(
-    "memoryStore",
-    r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
+  "memoryStore",
+  r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
 )
 
-parser.build()
+parser.compile()
 
 event = parser.parse_event(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
 
@@ -83,7 +83,7 @@ from log_surgeon import Parser
 
 parser = Parser()
 parser.add_var("metric", r"value=(?<value>\d+)")
-parser.build()
+parser.compile()
 
 # Parse multiple events from a stream
 log_data = """
@@ -93,7 +93,7 @@ log_data = """
 """
 
 for event in parser.parse(io.StringIO(log_data)):
-    print(f"Value: {event['value']}")
+  print(f"Value: {event['value']}")
 ```
 
 ### Export to DataFrame
@@ -104,10 +104,10 @@ from log_surgeon import Parser, Query
 
 parser = Parser()
 parser.add_var(
-    "metric",
-    r"metric=(?<metric_name>\w+) value=(?<value>\d+)"
+  "metric",
+  r"metric=(?<metric_name>\w+) value=(?<value>\d+)"
 )
-parser.build()
+parser.compile()
 
 log_data = """
 2024-01-01 INFO: metric=cpu value=42
@@ -117,10 +117,10 @@ log_data = """
 
 # Create a query and export to DataFrame
 query = (
-    Query(parser)
-    .select(["metric_name", "value"])
-    .from_stream(io.StringIO(log_data))
-    .validate_query()
+  Query(parser)
+  .select(["metric_name", "value"])
+  .from_stream(io.StringIO(log_data))
+  .validate_query()
 )
 
 df = query.to_dataframe()
@@ -150,7 +150,7 @@ High-level parser for extracting structured data from unstructured log messages.
   - Add a timestamp pattern to the parser's schema
   - Returns self for method chaining
 
-- `build() -> None`
+- `compile() -> None`
   - Build and initialize the parser with the configured schema
   - Must be called after adding variables and before parsing
 
@@ -163,6 +163,11 @@ High-level parser for extracting structured data from unstructured log messages.
 
 - `parse(input_stream: io.StringIO | io.BytesIO) -> Generator[LogEvent, None, None]`
   - Parse all log events from an input stream
+  - Yields LogEvent objects for each parsed event
+
+- `parse_file(file_path: str) -> Generator[LogEvent, None, None]`
+  - Parse all log events from a file
+  - Convenience method that handles file opening automatically
   - Yields LogEvent objects for each parsed event
 
 ### LogEvent
@@ -232,34 +237,34 @@ Query builder for parsing log events into structured data formats.
 - `get_rows(drop_null_rows: bool = True) -> list[list]`
   - Extract rows of field values from parsed events
 
-### SchemaBuilder
+### SchemaCompiler
 
-Builder for constructing log-surgeon schema definitions.
+Compiler for constructing log-surgeon schema definitions.
 
 #### Constructor
 
-- `SchemaBuilder(delimiters: str = DEFAULT_DELIMITERS)`
-  - Initialize a schema builder with optional custom delimiters
+- `SchemaCompiler(delimiters: str = DEFAULT_DELIMITERS)`
+  - Initialize a schema compiler with optional custom delimiters
 
 #### Methods
 
-- `add_var(name: str, regex: str, hide_var_name_if_named_group_present: bool = True) -> SchemaBuilder`
+- `add_var(name: str, regex: str, hide_var_name_if_named_group_present: bool = True) -> SchemaCompiler`
   - Add a variable pattern to the schema
   - Returns self for method chaining
 
-- `add_timestamp(name: str, regex: str) -> SchemaBuilder`
+- `add_timestamp(name: str, regex: str) -> SchemaCompiler`
   - Add a timestamp pattern to the schema
   - Returns self for method chaining
 
-- `remove_var(var_name: str) -> SchemaBuilder`
+- `remove_var(var_name: str) -> SchemaCompiler`
   - Remove a variable from the schema
   - Returns self for method chaining
 
 - `get_var(var_name: str) -> Variable`
   - Get a variable by name
 
-- `build() -> str`
-  - Build the final schema string
+- `compile() -> str`
+  - Compile the final schema string
 
 - `get_capture_group_name_resolver() -> GroupNameResolver`
   - Get the resolver for mapping logical to physical capture group names
@@ -328,7 +333,7 @@ timestamp:<timestamp_regex>
 variable_name:<variable_regex>
 ```
 
-When using the fluent API (`Parser.add_var()` and `Parser.build()`), the schema is built automatically.
+When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schema is built automatically.
 
 ## Development
 

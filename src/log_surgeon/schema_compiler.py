@@ -1,4 +1,4 @@
-"""Schema builder for constructing log-surgeon schema definitions."""
+"""Schema compiler for constructing log-surgeon schema definitions."""
 
 import re
 
@@ -18,24 +18,24 @@ _VARIABLE_DELIMITER_CONFLICT_ERROR = (
 )
 
 
-class SchemaBuilder:
+class SchemaCompiler:
     """
-    Builder for constructing log-surgeon schema definitions.
+    Compiler for constructing log-surgeon schema definitions.
 
-    The SchemaBuilder provides a fluent interface for defining variables, timestamps,
+    The SchemaCompiler provides a fluent interface for defining variables, timestamps,
     and delimiters that will be used to parse log messages. It manages the mapping
     between logical (user-defined) and physical (auto-generated) capture group names.
 
     Example:
-        >>> builder = SchemaBuilder()
-        >>> builder.add_var("metric", r"value=(?<value>\\d+)")
-        >>> builder.add_timestamp("ts", r"\\d{4}-\\d{2}-\\d{2}")
-        >>> schema = builder.build()
+        >>> compiler = SchemaCompiler()
+        >>> compiler.add_var("metric", r"value=(?<value>\\d+)")
+        >>> compiler.add_timestamp("ts", r"\\d{4}-\\d{2}-\\d{2}")
+        >>> schema = compiler.compile()
     """
 
     def __init__(self, delimiters: str = DEFAULT_DELIMITERS) -> None:
         """
-        Initialize a schema builder.
+        Initialize a schema compiler.
 
         Args:
             delimiters: String of delimiter characters for tokenization.
@@ -63,7 +63,7 @@ class SchemaBuilder:
         """
         return self.capture_group_name_resolver
 
-    def add_timestamp(self, name: str, regex: str) -> "SchemaBuilder":
+    def add_timestamp(self, name: str, regex: str) -> "SchemaCompiler":
         """
         Add a timestamp pattern to the schema.
 
@@ -82,7 +82,7 @@ class SchemaBuilder:
         name: str,
         regex: str,
         hide_var_name_if_named_group_present: bool = True
-    ) -> "SchemaBuilder":
+    ) -> "SchemaCompiler":
         """
         Add a variable pattern to the schema.
 
@@ -151,7 +151,7 @@ class SchemaBuilder:
                 )
             )
 
-    def remove_var(self, var_name: str) -> "SchemaBuilder":
+    def remove_var(self, var_name: str) -> "SchemaCompiler":
         """
         Remove a variable from the schema.
 
@@ -181,17 +181,17 @@ class SchemaBuilder:
         """
         return self.var_names[var_name]
 
-    def build(self) -> str:
+    def compile(self) -> str:
         """
-        Build the final schema string.
+        Compile the final schema string.
 
         Returns:
             Schema definition string ready for use with the parser
 
         Example:
-            >>> builder = SchemaBuilder()
-            >>> builder.add_var("MyVar", r"pattern (?<field>\\w+)")
-            >>> schema = builder.build()
+            >>> compiler = SchemaCompiler()
+            >>> compiler.add_var("MyVar", r"pattern (?<field>\\w+)")
+            >>> schema = compiler.compile()
         """
         schema_sections = [f"// schema delimiters\ndelimiters:{self.delimiters}"]
 

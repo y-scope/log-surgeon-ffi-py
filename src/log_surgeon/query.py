@@ -38,7 +38,7 @@ class Query:
     Example:
         >>> parser = Parser()
         >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-        >>> parser.build()
+        >>> parser.compile()
         >>> query = Query(parser).select(["value"]).from_stream(stream)
         >>> df = query.to_dataframe()
     """
@@ -199,7 +199,7 @@ if __name__ == "__main__":
         "memoryStore",
         r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
     )
-    parser.build()
+    parser.compile()
 
     log_data = " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB"
     input_stream = io.StringIO(log_data)

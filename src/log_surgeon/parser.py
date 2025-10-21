@@ -4,12 +4,12 @@ import io
 from typing import Generator
 
 from log_surgeon.group_name_resolver import GroupNameResolver
-from log_surgeon.schema_builder import SchemaBuilder
+from log_surgeon.schema_compiler import SchemaCompiler
 from log_surgeon.log_event import LogEvent
 from log_surgeon_ffi import ReaderParser
 
 _PARSER_NOT_INITIALIZED_ERROR = (
-    "Parser not initialized. Load a log surgeon schema using load_schema() or build()"
+    "Parser not initialized. Load a log surgeon schema using load_schema() or compile()"
 )
 
 
@@ -19,12 +19,12 @@ class Parser:
 
     The Parser uses a schema-based approach to identify patterns, extract variables,
     and generate log types from raw log text. It supports both fluent API style
-    (using add_var() and build()) and direct schema loading.
+    (using add_var() and compile()) and direct schema loading.
 
     Example:
         >>> parser = Parser()
         >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-        >>> parser.build()
+        >>> parser.compile()
         >>> event = parser.parse_event("Processing value=42")
         >>> print(event['value'])
         42
@@ -40,7 +40,7 @@ class Parser:
                 These characters are used to split log messages into tokens.
         """
         self._parser: ReaderParser | None = None
-        self._schema_builder: SchemaBuilder = SchemaBuilder(delimiters)
+        self._schema_compiler: SchemaCompiler = SchemaCompiler(delimiters)
 
     def add_var(
         self,
@@ -60,7 +60,7 @@ class Parser:
         Returns:
             Self for method chaining
         """
-        self._schema_builder.add_var(name, regex, hide_var_name_if_named_group_present)
+        self._schema_compiler.add_var(name, regex, hide_var_name_if_named_group_present)
         return self
 
     def add_timestamp(self, name: str, regex: str) -> "Parser":
@@ -77,10 +77,10 @@ class Parser:
         Example:
             >>> parser.add_timestamp("iso8601", r"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}")
         """
-        self._schema_builder.add_timestamp(name, regex)
+        self._schema_compiler.add_timestamp(name, regex)
         return self
 
-    def build(self) -> None:
+    def compile(self) -> None:
         """
         Build and initialize the parser with the configured schema.
 
@@ -92,8 +92,8 @@ class Parser:
         """
         self._parser = ReaderParser(
             io.BytesIO(),
-            self._schema_builder.build(),
-            self._schema_builder.get_capture_group_name_resolver()
+            self._schema_compiler.compile(),
+            self._schema_compiler.get_capture_group_name_resolver()
         )
 
     def load_schema(self, schema: str, group_name_resolver: GroupNameResolver) -> None:
@@ -128,7 +128,7 @@ class Parser:
         Parse all log events from an input stream.
 
         Args:
-            input_stream: Input stream containing log data (StringIO or BytesIO)
+            input_stream: Input stream containing log data
 
         Yields:
             LogEvent objects for each parsed event
@@ -138,15 +138,43 @@ class Parser:
 
         Example:
             >>> parser = Parser()
-            >>> parser.load_schema(schema, resolver)
-            >>> with open("logs.txt") as f:
-            ...     for event in parser.parse(io.StringIO(f.read())):
-            ...         print(event['field_name'])
+            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
+            >>> parser.compile()
+            >>> for event in parser.parse(io.StringIO("value=42\\nvalue=100")):
+            ...     print(event['value'])
         """
         self._ensure_initialized()
         self._parser.reset_input_stream(input_stream)
         while (event := self._parser.parse_next_log_event()) is not None:
             yield event
+
+    def parse_file(self, file_path: str) -> Generator[LogEvent, None, None]:
+        """
+        Parse all log events from a file.
+
+        Convenience method that opens a file and parses its contents.
+        The file is read in binary mode and automatically converted to a BytesIO stream.
+
+        Args:
+            file_path: Path to the log file to parse
+
+        Yields:
+            LogEvent objects for each parsed event
+
+        Raises:
+            RuntimeError: If parser is not initialized with a schema
+            FileNotFoundError: If the file does not exist
+            IOError: If the file cannot be read
+
+        Example:
+            >>> parser = Parser()
+            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
+            >>> parser.compile()
+            >>> for event in parser.parse_file("logs.txt"):
+            ...     print(event['value'])
+        """
+        with open(file_path, "rb") as file:
+            yield from self.parse(io.BytesIO(file.read()))
 
     def _ensure_initialized(self) -> None:
         """
@@ -166,7 +194,7 @@ if __name__ == "__main__":
         "memoryStore",
         r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
     )
-    parser.build()
+    parser.compile()
 
     event = parser.parse_event(
         " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n"
@@ -188,7 +216,7 @@ if __name__ == "__main__":
         "memoryStore",
         r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
     )
-    parser.build()
+    parser.compile()
 
     event = parser.parse_event(
         " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n"
