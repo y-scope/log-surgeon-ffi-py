@@ -10,7 +10,7 @@ class PATTERN:
     IP_OCTET = r"(25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([1-9]{0,1}[0-9])"
     """Pattern for a single IPv4 octet (0-255)."""
 
-    IPV4 = f"(({IP_OCTET})\.){{3}}{IP_OCTET}"
+    IPV4 = rf"(({IP_OCTET})\.){{3}}{IP_OCTET}"
     """Pattern for IPv4 addresses."""
 
     PORT = r"\d{1,5}"
