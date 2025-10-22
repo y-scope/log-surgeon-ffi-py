@@ -1,4 +1,5 @@
 """Group name resolver for mapping between logical and physical capture group names."""
+from typing import KeysView
 
 
 class GroupNameResolver:
@@ -122,3 +123,20 @@ class GroupNameResolver:
         """
         return self._reverse[physical_name]
 
+    def get_all_logical_names(self) -> KeysView[str]:
+        """
+        Get all logical names that have been registered.
+
+        Returns:
+            A view of all logical names that have at least one physical name mapping
+
+        Example:
+            >>> resolver = GroupNameResolver("CGPrefix")
+            >>> resolver.create_new_physical_name("user_id")
+            'CGPrefix0'
+            >>> resolver.create_new_physical_name("thread")
+            'CGPrefix1'
+            >>> resolver.get_all_logical_names()
+            dict_keys(['user_id', 'thread'])
+        """
+        return self._forward.keys()

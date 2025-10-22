@@ -1,7 +1,7 @@
 """High-level parser for extracting structured data from unstructured log messages."""
 
 import io
-from typing import BinaryIO, Generator, TextIO
+from typing import BinaryIO, Generator, TextIO, KeysView
 
 from log_surgeon.group_name_resolver import GroupNameResolver
 from log_surgeon.schema_compiler import SchemaCompiler
@@ -206,6 +206,27 @@ class Parser:
         self._parser.reset_input_stream(input_stream)
         while (event := self._parser.parse_next_log_event()) is not None:
             yield event
+
+    def get_vars(self) -> KeysView[str]:
+        """
+        Get all variable names (logical capture group names) defined in the schema.
+
+        This method returns all the logical names that were defined using add_var()
+        or present in the loaded schema. These correspond to the keys available
+        in parsed LogEvent objects.
+
+        Returns:
+            A view of all variable names defined in the schema
+
+        Example:
+            >>> parser = Parser()
+            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
+            >>> parser.add_var("status", r"status=(?<status>\\w+)")
+            >>> parser.compile()
+            >>> parser.get_vars()
+            dict_keys(['metric', 'status'])
+        """
+        return self._schema_compiler.get_capture_group_name_resolver().get_all_logical_names()
 
     def _ensure_initialized(self) -> None:
         """

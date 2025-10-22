@@ -98,8 +98,10 @@ class Query:
         Raises:
             AttributeError: If "*" is combined with other field names
         """
-        if "*" in fields and len(fields) > 1:
-            raise AttributeError("You cannot combine \"*\" with other field names.")
+        if "*" in fields:
+            if len(fields) > 1:
+                raise AttributeError("You cannot combine \"*\" with other field names.")
+            fields = list(self.parser.get_vars())
 
         self.fields = fields
         return self
