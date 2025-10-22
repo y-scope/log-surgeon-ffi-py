@@ -204,24 +204,18 @@ class Query:
             raise AttributeError("Query is empty")
         return self
 
-    def to_df(self, drop_null_rows: bool = True) -> "pd.DataFrame":
+    def to_df(self) -> "pd.DataFrame":
         """
         Alias for to_dataframe().
-
-        Args:
-            drop_null_rows: Whether to drop rows with all null values
 
         Returns:
             pandas DataFrame with extracted fields
         """
-        return self.to_dataframe(drop_null_rows=drop_null_rows)
+        return self.to_dataframe()
 
-    def to_dataframe(self, drop_null_rows: bool = True) -> "pd.DataFrame":
+    def to_dataframe(self) -> "pd.DataFrame":
         """
         Convert parsed events to a pandas DataFrame.
-
-        Args:
-            drop_null_rows: Whether to drop rows with all null values
 
         Returns:
             pandas DataFrame with extracted fields
@@ -232,27 +226,21 @@ class Query:
         if pd is None:
             raise ImportError(_DATAFRAME_IMPORT_ERROR)
 
-        rows = self.get_rows(drop_null_rows)
+        rows = self.get_rows()
         return pd.DataFrame(rows, columns=self.fields)
 
-    def to_pa(self, drop_null_rows: bool = True) -> "pa.Table":
+    def to_pa(self) -> "pa.Table":
         """
         Alias for to_arrow().
-
-        Args:
-            drop_null_rows: Whether to drop rows with all null values
 
         Returns:
             PyArrow Table with extracted fields
         """
-        return self.to_arrow(drop_null_rows=drop_null_rows)
+        return self.to_arrow()
 
-    def to_arrow(self, drop_null_rows: bool = True) -> "pa.Table":
+    def to_arrow(self) -> "pa.Table":
         """
         Convert parsed events to a PyArrow Table.
-
-        Args:
-            drop_null_rows: Whether to drop rows with all null values
 
         Returns:
             PyArrow Table with extracted fields
@@ -263,25 +251,14 @@ class Query:
         if pa is None:
             raise ImportError(_ARROW_IMPORT_ERROR)
 
-        if self.fields and self.fields[0] == "*":
-            events = self.parser.parse(self.stream)
-            # Apply filter if set
-            if self.predicate is not None:
-                events = (event for event in events if self.predicate(event))
-            records = list(events)
-            return pa.Table.from_pylist(records)
-
-        rows = self.get_rows(drop_null_rows)
+        rows = self.get_rows()
         # Transpose rows for column-oriented storage
         columns = [[row[i] for row in rows] for i in range(len(self.fields))]
         return pa.Table.from_arrays([pa.array(col) for col in columns], names=self.fields)
 
-    def get_rows(self, drop_null_rows: bool = True) -> list[list]:
+    def get_rows(self) -> list[list]:
         """
         Extract rows of field values from parsed events.
-
-        Args:
-            drop_null_rows: Whether to skip rows with all null values
 
         Returns:
             List of rows, where each row is a list of field values
@@ -293,8 +270,7 @@ class Query:
                 continue
 
             row = [event.get_capture_group_str_representation(field) for field in self.fields]
-            if not drop_null_rows or not all(value is None for value in row):
-                rows.append(row)
+            rows.append(row)
         return rows
 
 if __name__ == "__main__":
@@ -316,7 +292,7 @@ if __name__ == "__main__":
     )
 
     # Export to pandas DataFrame
-    df = query.to_dataframe(drop_null_rows=True)
+    df = query.to_dataframe()
     print("DataFrame:")
     print(df)
     print()
@@ -325,6 +301,6 @@ if __name__ == "__main__":
     query.from_stream(log_data)
 
     # Export to PyArrow Table
-    arrow_table = query.to_arrow(drop_null_rows=True)
+    arrow_table = query.to_arrow()
     print("Arrow Table:")
     print(arrow_table)

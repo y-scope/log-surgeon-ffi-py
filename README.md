@@ -297,21 +297,21 @@ Query builder for parsing log events into structured data formats.
   - Validate that the query is properly configured
   - Returns self for method chaining
 
-- `to_dataframe(drop_null_rows: bool = True) -> pd.DataFrame`
+- `to_dataframe() -> pd.DataFrame`
   - Convert parsed events to a pandas DataFrame
   - Requires pandas (install with `pip install log-surgeon-ffi[dataframe]`)
 
-- `to_df(drop_null_rows: bool = True) -> pd.DataFrame`
+- `to_df() -> pd.DataFrame`
   - Alias for `to_dataframe()`
 
-- `to_arrow(drop_null_rows: bool = True) -> pa.Table`
+- `to_arrow() -> pa.Table`
   - Convert parsed events to a PyArrow Table
   - Requires pyarrow (install with `pip install log-surgeon-ffi[dataframe]`)
 
-- `to_pa(drop_null_rows: bool = True) -> pa.Table`
+- `to_pa() -> pa.Table`
   - Alias for `to_arrow()`
 
-- `get_rows(drop_null_rows: bool = True) -> list[list]`
+- `get_rows() -> list[list]`
   - Extract rows of field values from parsed events
 
 ### SchemaCompiler
