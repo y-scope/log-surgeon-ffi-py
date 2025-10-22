@@ -58,7 +58,7 @@ class LogEvent:
             resolve_physical_group_name,
             self._var_dict['@LogType']
         )
-        return f"<timestamp>{resolved_logtype}"
+        return f"{resolved_logtype}"
 
     def get_capture_group(
         self,
