@@ -242,12 +242,20 @@ Represents a parsed log event with extracted variables.
 - `get_capture_group_str_representation(field: str, raw_output: bool = False) -> str`
   - Get the string representation of a capture group value
 
+- `get_resolved_dict() -> dict[str, str | list]`
+  - Get a dictionary with all capture groups using logical (user-defined) names
+  - Physical names (CGPrefix*) are converted to logical names
+  - Timestamp fields are consolidated under "timestamp" key
+  - Single-value lists are unwrapped to scalar values
+  - "@LogType" is excluded from the output
+
 - `__getitem__(key: str) -> str | list`
   - Access capture group values by name (e.g., `event['field_name']`)
   - Shorthand for `get_capture_group(key, raw_output=False)`
 
 - `__str__() -> str`
   - Get formatted JSON representation of the log event with logical group names
+  - Uses `get_resolved_dict()` internally
 
 ### Query
 

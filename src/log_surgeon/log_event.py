@@ -142,18 +142,28 @@ class LogEvent:
         """
         return self.get_capture_group(logical_capture_group_name, raw_output=False)
 
-    def __str__(self) -> str:
+    def get_resolved_dict(self) -> dict[str, str | list[str | int | float]]:
         """
-        Get a formatted JSON representation of the log event.
+        Get a dictionary with all capture groups using logical (user-defined) names.
+
+        This method converts the internal representation (which uses physical names like
+        "CGPrefix0") to a user-friendly dictionary with logical names. Single-element
+        lists are unwrapped to their scalar values.
 
         Returns:
-            Pretty-printed JSON string with all variables
+            Dictionary mapping logical capture group names to their values.
+            - "@LogType" is excluded from the output
+            - Timestamp fields are consolidated under "timestamp" key
+            - Physical names (CGPrefix*) are converted to logical names
+            - Single-value lists are unwrapped to scalar values
 
         Example:
-            >>> print(event)
+            >>> event.get_resolved_dict()
             {
-              "@LogType": "...",
-              "field1": "value1"
+                "timestamp": "2024-01-01T10:00:00",
+                "level": "INFO",
+                "thread": "main",
+                "value": "42"
             }
         """
         resolved_dict = {}
@@ -174,7 +184,23 @@ class LogEvent:
                 else:
                     resolved_dict[logical_name] = value[0]
 
-        return json.dumps(resolved_dict, indent=2)
+        return resolved_dict
+
+    def __str__(self) -> str:
+        """
+        Get a formatted JSON representation of the log event.
+
+        Returns:
+            Pretty-printed JSON string with all variables
+
+        Example:
+            >>> print(event)
+            {
+              "@LogType": "...",
+              "field1": "value1"
+            }
+        """
+        return json.dumps(self.get_resolved_dict(), indent=2)
 
     def __repr__(self) -> str:
         """
