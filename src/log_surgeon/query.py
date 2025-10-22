@@ -232,13 +232,6 @@ class Query:
         if pd is None:
             raise ImportError(_DATAFRAME_IMPORT_ERROR)
 
-        if self.fields and self.fields[0] == "*":
-            events = self.parser.parse(self.stream)
-            # Apply filter if set
-            if self.predicate is not None:
-                events = (event for event in events if self.predicate(event))
-            return pd.json_normalize(events)
-
         rows = self.get_rows(drop_null_rows)
         return pd.DataFrame(rows, columns=self.fields)
 
