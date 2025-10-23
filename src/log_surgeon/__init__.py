@@ -1,4 +1,4 @@
-"""
+r"""
 log-surgeon: High-performance log parsing and structured data extraction.
 
 This package provides Python FFI bindings to the log-surgeon C++ library,
@@ -17,22 +17,23 @@ Example:
     >>> parser.add_var("metric", r"value=(?<value>\\d+)")
     >>> parser.compile()
     >>> event = parser.parse_event("Processing metric value=42")
-    >>> print(event['value'])
+    >>> print(event["value"])
     42
+
 """
 
-from .schema_compiler import SchemaCompiler
-from .parser import Parser
-from .query import Query
-from .log_event import LogEvent
 from .group_name_resolver import GroupNameResolver
+from .log_event import LogEvent
+from .parser import Parser
 from .pattern import PATTERN
+from .query import Query
+from .schema_compiler import SchemaCompiler
 
 __all__ = [
+    "PATTERN",
+    "GroupNameResolver",
+    "LogEvent",
     "Parser",
     "Query",
     "SchemaCompiler",
-    "LogEvent",
-    "GroupNameResolver",
-    "PATTERN",
 ]
