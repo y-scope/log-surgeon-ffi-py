@@ -66,9 +66,14 @@ print(f"Parsed Logs: {event}")
 Message: 16/05/04 04:24:58 INFO Registering worker with 1 core and 4.0 GiB ram
 LogType: 16/05/04 04:24:58 INFO Registering worker with 1 core and <memory_gb> GiB ram
 Parsed Logs: {
-  "core": "1"
+  "memory_gb": "4.0"
 }
 ```
+
+The parser extracted structured data from the unstructured log line:
+- **Message**: The original log line
+- **LogType**: Template with variable placeholder `<memory_gb>` showing the pattern structure
+- **Parsed variables**: Successfully extracted `memory_gb` value of "4.0" from the pattern match
 
 ### Multiple Capture Groups
 
@@ -103,6 +108,7 @@ parser.add_timestamp("TIMESTAMP_SPARK_1_6", rf"\d{{2}}/\d{{2}}/\d{{2}} \d{{2}}:\
 
 # Add variable patterns
 parser.add_var("SYSTEM_LEVEL", rf"(?<level>(INFO)|(WARN)|(ERROR))")
+parser.add_var("SPARK_HOST_IP_PORT", rf"(?<spark_host>spark\-{PATTERN.INT})/(?<system_ip>{PATTERN.IPV4}):(?<system_port>{PATTERN.PORT})")
 parser.add_var(
   "SYSTEM_EXCEPTION",
   rf"(?<system_exception_type>({PATTERN.JAVA_PACKAGE_SEGMENT})+[{PATTERN.JAVA_IDENTIFIER_CHARSET}]*Exception): "
@@ -142,26 +148,14 @@ java.io.IOException: Connection reset by peer
         at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
         at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:111)
         at java.lang.Thread.run(Thread.java:750)
-LogType: <timestamp> <level> server.TransportChannelHandler: Exception in connection from spark-35/192.168.10.50:55392
-<system_exception_type>: <system_exception_msg>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
-        at <system_stack>
+LogType: <timestamp> <level> server.TransportChannelHandler: Exception in connection from <spark_host>/<system_ip>:<system_port>
+<system_exception_type>: <system_exception_msg><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>
 Parsed Logs: {
   "timestamp": "16/05/04 12:22:37",
   "level": "WARN",
+  "spark_host": "spark-35",
+  "system_ip": "192.168.10.50",
+  "system_port": "55392",
   "system_exception_type": "java.io.IOException",
   "system_exception_msg": "Connection reset by peer",
   "system_stack": [
@@ -184,30 +178,75 @@ Parsed Logs: {
 }
 ```
 
+The parser extracted **multiple named capture groups** from a complex multi-line Java stack trace:
+- **Scalar fields**: `timestamp`, `level`, `spark_host`, `system_ip`, `system_port`, `system_exception_type`, `system_exception_msg`
+- **Array field**: `system_stack` contains all 15 stack trace locations (demonstrates automatic aggregation of repeated capture groups)
+- **LogType**: Template shows the structure with `<newLine>` markers indicating line boundaries in the original log
+
 ### Stream Parsing
 
 ```python
-from log_surgeon import Parser
+from log_surgeon import Parser, PATTERN
 
-parser = Parser()
-parser.add_var("metric", rf"value=(?<value>\d+)")
-parser.compile()
-
-# Parse from string (automatically converted to StringIO)
-log_data = """
-2024-01-01 INFO: Processing metric value=42
-2024-01-01 INFO: Processing metric value=100
-2024-01-01 INFO: Processing metric value=7
+# Parse from string (automatically converted to io.StringIO)
+SAMPLE_LOGS = """16/05/04 04:31:13 INFO master.Master: Registering app SparkSQL::192.168.10.76
+16/05/04 12:32:37 WARN server.TransportChannelHandler: Exception in connection from spark-35/192.168.10.50:55392
+java.io.IOException: Connection reset by peer
+        at sun.nio.ch.FileDispatcherImpl.read0(Native Method)
+        at sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:39)
+        at sun.nio.ch.IOUtil.readIntoNativeBuffer(IOUtil.java:223)
+        at sun.nio.ch.IOUtil.read(IOUtil.java:192)
+        at sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:380)
+        at io.netty.buffer.PooledUnsafeDirectByteBuf.setBytes(PooledUnsafeDirectByteBuf.java:313)
+        at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:881)
+        at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:242)
+        at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:119)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
+        at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
+        at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:111)
+        at java.lang.Thread.run(Thread.java:750)
+16/05/04 04:37:53 INFO master.Master: 192.168.10.76:41747 got disassociated, removing it.
 """
 
-for event in parser.parse(log_data):
-  print(f"Value: {event['value']}")
+# Define parser with patterns
+parser = Parser()
+# REQUIRED: Timestamp acts as contextual anchor to separate individual log events in the stream
+parser.add_timestamp("TIMESTAMP_SPARK_1_6", rf"\d{{2}}/\d{{2}}/\d{{2}} \d{{2}}:\d{{2}}:\d{{2}}")
+parser.add_var("SYSTEM_LEVEL", rf"(?<level>(INFO)|(WARN)|(ERROR))")
+parser.add_var("SPARK_APP_NAME", rf"(?<spark_app_name>SparkSQL::{PATTERN.IPV4})")
+parser.add_var("SPARK_HOST_IP_PORT", rf"(?<spark_host>spark\-{PATTERN.INT})/(?<system_ip>{PATTERN.IPV4}):(?<system_port>{PATTERN.PORT})")
+parser.add_var(
+    "SYSTEM_EXCEPTION",
+    rf"(?<system_exception_type>({PATTERN.JAVA_PACKAGE_SEGMENT})+[{PATTERN.JAVA_IDENTIFIER_CHARSET}]*Exception): "
+    rf"(?<system_exception_msg>{PATTERN.LOG_LINE})"
+)
+parser.add_var(
+    rf"SYSTEM_STACK_TRACE", rf"(\s{{1,4}}at (?<system_stack>{PATTERN.JAVA_STACK_LOCATION})"
+)
+parser.add_var("IP_PORT", rf"(?<system_ip>{PATTERN.IPV4}):(?<system_port>{PATTERN.PORT})")
+parser.compile()
 
-# Or parse from file object directly
-with open("logs.txt", "r") as f:
-  for event in parser.parse(f):
-    print(f"Value: {event['value']}")
+# Stream parsing: iterate over multi-line log events
+for idx, event in enumerate(parser.parse(SAMPLE_LOGS)):
+    print(f"log-event-{idx} log template type:{event.get_log_type().strip()}")
 ```
+
+**Output:**
+```
+log-event-0 log template type:<timestamp> <level> master.Master: Registering app <spark_app_name>
+log-event-1 log template type:<timestamp> <level> server.TransportChannelHandler: Exception in connection from <spark_host>/<system_ip>:<system_port>
+<system_exception_type>: <system_exception_msg><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack><newLine>        at <system_stack>
+log-event-2 log template type:<timestamp> <level> master.Master: <system_ip>:<system_port> got disassociated, removing it.<newLine>
+```
+
+The parser successfully separated the log stream into **3 distinct events** using timestamps as contextual anchors:
+- **Event 0**: Single-line app registration log
+- **Event 1**: Multi-line exception with 15 stack trace lines (demonstrates how timestamps bind multi-line events together)
+- **Event 2**: Single-line disassociation log
+
+Each log type shows the template structure with variable placeholders (`<level>`, `<system_ip>`, etc.), enabling pattern-based log analysis and grouping.
 
 ### Using Pattern Constants
 
@@ -290,9 +329,9 @@ print(df)
 # 1         cpu     85
 ```
 
-### Including Log Metadata
+### Including Log Template Type and Log Message
 
-Use special fields `@log_type` and `@log_message` to include log metadata alongside extracted variables:
+Use special fields `@log_type` and `@log_message` to include alongside extracted variables:
 
 ```python
 from log_surgeon import Parser, Query
