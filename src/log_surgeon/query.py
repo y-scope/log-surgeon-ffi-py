@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
     from log_surgeon.log_event import LogEvent
 
-from log_surgeon.parser import Parser
+from log_surgeon.parser import Parser  # noqa: TC001 - Parser is used at runtime
 
 try:
     import pandas as pd
