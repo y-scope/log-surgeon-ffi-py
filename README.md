@@ -185,6 +185,8 @@ The parser extracted **multiple named capture groups** from a complex multi-line
 
 ### Stream Parsing
 
+When parsing log streams or files, timestamps are **required** to perform contextual anchoring. Timestamps act as delimiters that separate individual log events, enabling the parser to correctly group multi-line entries (like stack traces) into single events.
+
 ```python
 from log_surgeon import Parser, PATTERN
 
