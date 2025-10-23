@@ -54,13 +54,18 @@ class LogEvent:
 
         def resolve_physical_group_name(match: re.Match[str]) -> str:
             physical_group_name = match.group(1)
-            logical_group_name = self._group_name_resolver.get_logical_name(physical_group_name)
+            # _group_name_resolver is always initialized by FFI layer
+            logical_group_name = self._group_name_resolver.get_logical_name(physical_group_name)  # type: ignore[union-attr]
             return f"<{logical_group_name}>"
+
+        log_type_value = self._var_dict.get('@LogType')
+        if not isinstance(log_type_value, str):
+            raise RuntimeError("LogType not found or invalid in LogEvent")
 
         resolved_logtype = re.sub(
             r"<(CGPrefix\d+)>",
             resolve_physical_group_name,
-            self._var_dict['@LogType']
+            log_type_value
         )
         return f"{resolved_logtype}"
 
@@ -98,12 +103,13 @@ class LogEvent:
             return self.get_log_message()
 
         # Look up all physical names for this logical name
-        for physical_group_name in self._group_name_resolver.get_physical_names(logical_capture_group_name):
+        # _group_name_resolver is always initialized by FFI layer
+        for physical_group_name in self._group_name_resolver.get_physical_names(logical_capture_group_name):  # type: ignore[union-attr]
             value = self._var_dict.get(physical_group_name)
             if value:
                 if raw_output or len(value) > 1:
                     return value
-                return value[0]
+                return value[0]  # type: ignore[return-value]
 
         return None
 
@@ -176,7 +182,7 @@ class LogEvent:
             }
 
         """
-        resolved_dict = {}
+        resolved_dict: dict[str, str | list[str | int | float]] = {}
         for key, value in self._var_dict.items():
             if key == "@LogType":
                 continue
@@ -184,15 +190,16 @@ class LogEvent:
                 if len(value) > 1:
                     resolved_dict["timestamp"] = value
                 else:
-                    resolved_dict["timestamp"] = value[0]
+                    resolved_dict["timestamp"] = value[0]  # type: ignore[assignment]
                 continue
 
-            logical_name = self._group_name_resolver.get_logical_name(key)
+            # _group_name_resolver is always initialized by FFI layer
+            logical_name = self._group_name_resolver.get_logical_name(key)  # type: ignore[union-attr]
             if value:
                 if len(value) > 1:
                     resolved_dict[logical_name] = value
                 else:
-                    resolved_dict[logical_name] = value[0]
+                    resolved_dict[logical_name] = value[0]  # type: ignore[assignment]
 
         return resolved_dict
 
