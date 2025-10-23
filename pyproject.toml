@@ -87,6 +87,7 @@ ignore = [
     "FIX002",  # Allow todo statements
     "PERF401",  # Allow for loops when creating lists
     "PERF403",  # Allow for loops when creating dicts
+    "S101",  # Allow assert statements (used to verify FFI-guaranteed initializations)
     "S311",  # Allow usage of `random` package
     "S603", # Automatically trust inputs of subprocess execution
     "SIM102",  # Allow collapsible if statements for readability
