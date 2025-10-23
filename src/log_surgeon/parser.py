@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import io
-from collections.abc import Generator, KeysView
-from typing import BinaryIO, TextIO
+from typing import TYPE_CHECKING, BinaryIO, TextIO
 
-from log_surgeon.group_name_resolver import GroupNameResolver
-from log_surgeon.log_event import LogEvent
+if TYPE_CHECKING:
+    from collections.abc import Generator, KeysView
+
+    from log_surgeon.group_name_resolver import GroupNameResolver
+    from log_surgeon.log_event import LogEvent
+
 from log_surgeon.schema_compiler import SchemaCompiler
 from log_surgeon_ffi import ReaderParser  # type: ignore[attr-defined]
 

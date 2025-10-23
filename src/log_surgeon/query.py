@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import io
-from collections.abc import Generator
-from typing import BinaryIO, Callable, TextIO, TYPE_CHECKING
-
-from log_surgeon.log_event import LogEvent
-from log_surgeon.parser import Parser
+from typing import TYPE_CHECKING, BinaryIO, Callable, TextIO
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     import pandas as pd  # type: ignore[import-untyped]
     import pyarrow as pa  # type: ignore[import-untyped]
+
+    from log_surgeon.log_event import LogEvent
+
+from log_surgeon.parser import Parser
 
 try:
     import pandas as pd
