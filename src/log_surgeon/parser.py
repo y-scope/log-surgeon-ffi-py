@@ -201,12 +201,14 @@ class Parser:
             elif isinstance(content, str):
                 input_stream = io.StringIO(content)
             else:
-                raise TypeError(f"File object returned unsupported type {type(content).__name__}")
+                msg = f"File object returned unsupported type {type(content).__name__}"
+                raise TypeError(msg)
         else:
-            raise TypeError(
+            msg = (
                 f"Input must be str, file object, io.StringIO, or io.BytesIO, "
                 f"got {type(input).__name__}"
             )
+            raise TypeError(msg)
 
         assert self._parser is not None
         self._parser.reset_input_stream(input_stream)

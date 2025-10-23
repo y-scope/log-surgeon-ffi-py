@@ -177,12 +177,14 @@ class Query:
             elif isinstance(content, str):
                 input_stream = io.StringIO(content)
             else:
-                raise TypeError(f"File object returned unsupported type {type(content).__name__}")
+                msg = f"File object returned unsupported type {type(content).__name__}"
+                raise TypeError(msg)
         else:
-            raise TypeError(
+            msg = (
                 f"Input must be str, file object, io.StringIO, or io.BytesIO, "
                 f"got {type(input).__name__}"
             )
+            raise TypeError(msg)
 
         self.stream = input_stream
         return self
@@ -199,13 +201,14 @@ class Query:
 
         """
         if self.fields is None:
-            raise AttributeError("Query is missing fields")
+            msg = "Query is missing fields"
+            raise AttributeError(msg)
         if not self.fields:
-            raise AttributeError(
-                'Selected fields must be at least one variable, use "*" if unknown'
-            )
+            msg = 'Selected fields must be at least one variable, use "*" if unknown'
+            raise AttributeError(msg)
         if self.stream is None:
-            raise AttributeError("Query is empty")
+            msg = "Query is empty"
+            raise AttributeError(msg)
         return self
 
     def to_df(self) -> "pd.DataFrame":

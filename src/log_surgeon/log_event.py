@@ -61,7 +61,8 @@ class LogEvent:
 
         log_type_value = self._var_dict.get('@LogType')
         if not isinstance(log_type_value, str):
-            raise RuntimeError("LogType not found or invalid in LogEvent")
+            msg = "LogType not found or invalid in LogEvent"
+            raise RuntimeError(msg)
 
         resolved_logtype = re.sub(
             r"<(CGPrefix\d+)>",
@@ -155,7 +156,8 @@ class LogEvent:
         """
         result = self.get_capture_group(logical_capture_group_name, raw_output=False)
         if result is None:
-            raise KeyError(f"Capture group '{logical_capture_group_name}' not found")
+            msg = f"Capture group '{logical_capture_group_name}' not found"
+            raise KeyError(msg)
         return result
 
     def get_resolved_dict(self) -> dict[str, str | list[str | int | float]]:

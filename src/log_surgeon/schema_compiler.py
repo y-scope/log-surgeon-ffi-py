@@ -105,10 +105,11 @@ class SchemaCompiler:
         converted_regex = regex.replace("(?<", "(?P<")
         logical_capture_group_names = set(re.compile(converted_regex).groupindex.keys())
         if len(logical_capture_group_names) < 1:
-            raise ValueError(
+            msg = (
                 f"Pattern requires at least one named capture group (e.g., (?<name>...). "
                 f"Provided: {regex}"
             )
+            raise ValueError(msg)
 
         # Replace user-provided logical capture group name in regex pattern with
         # auto-generated physical capture group name
