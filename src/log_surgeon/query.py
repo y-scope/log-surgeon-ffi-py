@@ -63,6 +63,12 @@ class Query:
         """
         Filter log events using a predicate function.
 
+        Note:
+            Cannot be chained - calling filter() multiple times will replace the
+            previous predicate. Only the most recently set predicate is applied.
+            To apply multiple conditions, combine them in a single predicate using
+            `and`/`or` operators.
+
         Args:
             predicate: Function that takes a LogEvent and returns True to include it,
                       False to exclude it from results
@@ -74,7 +80,7 @@ class Query:
             >>> # Filter by field value
             >>> query.filter(lambda event: int(event["value"]) > 50)
             >>>
-            >>> # Filter by multiple conditions
+            >>> # Filter by multiple conditions (use 'and' in single predicate)
             >>> query.filter(
             ...     lambda event: event["level"] == "ERROR"
             ...     and "exception" in event.get_log_message()
