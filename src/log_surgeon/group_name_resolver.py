@@ -1,5 +1,5 @@
 """Group name resolver for mapping between logical and physical capture group names."""
-from typing import KeysView
+from collections.abc import KeysView
 
 
 class GroupNameResolver:
