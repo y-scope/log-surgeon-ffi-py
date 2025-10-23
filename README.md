@@ -17,17 +17,13 @@ log-surgeon-ffi provides a Pythonic interface to the log-surgeon C++ library, en
 pip install log-surgeon-ffi
 ```
 
-For optional DataFrame/Arrow support:
-```bash
-pip install log-surgeon-ffi[dataframe]
-```
+**Note:** pandas and pyarrow are included as dependencies for DataFrame/Arrow support.
 
 ## Quick Start
 
 ### Basic Parsing
 
 ```python
-import io
 from log_surgeon import Parser
 
 # Create a parser and define extraction patterns
@@ -51,18 +47,20 @@ print(f"Capacity: {event['memory_store_capacity_GiB']}")
 ### Multiple Capture Groups
 
 ```python
+from log_surgeon import Parser
+
 parser = Parser()
 
 # Extract platform information (level, thread, component)
 parser.add_var(
   "platform",
-  r"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] (?<platform_component>.+):"
+  rf"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] (?<platform_component>.+):"
 )
 
 # Extract application-specific metrics
 parser.add_var(
   "memoryStore",
-  r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
+  rf"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
 )
 
 parser.compile()
@@ -81,10 +79,10 @@ print(f"Capacity: {event['memory_store_capacity_GiB']}")
 from log_surgeon import Parser
 
 parser = Parser()
-parser.add_var("metric", r"value=(?<value>\d+)")
+parser.add_var("metric", rf"value=(?<value>\d+)")
 parser.compile()
 
-# Parse from string (automatically wrapped in StringIO)
+# Parse from string (automatically converted to StringIO)
 log_data = """
 2024-01-01 INFO: Processing metric value=42
 2024-01-01 INFO: Processing metric value=100
@@ -126,7 +124,7 @@ from log_surgeon import Parser, Query
 parser = Parser()
 parser.add_var(
   "metric",
-  r"metric=(?<metric_name>\w+) value=(?<value>\d+)"
+  rf"metric=(?<metric_name>\w+) value=(?<value>\d+)"
 )
 parser.compile()
 
@@ -154,7 +152,7 @@ print(df)
 from log_surgeon import Parser, Query
 
 parser = Parser()
-parser.add_var("metric", r"metric=(?<metric_name>\w+) value=(?<value>\d+)")
+parser.add_var("metric", rf"metric=(?<metric_name>\w+) value=(?<value>\d+)")
 parser.compile()
 
 log_data = """
@@ -189,7 +187,7 @@ Use special fields `@log_type` and `@log_message` to include log metadata alongs
 from log_surgeon import Parser, Query
 
 parser = Parser()
-parser.add_var("metric", r"value=(?<value>\d+)")
+parser.add_var("metric", rf"value=(?<value>\d+)")
 parser.compile()
 
 log_data = """
@@ -232,6 +230,7 @@ High-level parser for extracting structured data from unstructured log messages.
 - `add_var(name: str, regex: str, hide_var_name_if_named_group_present: bool = True) -> Parser`
   - Add a variable pattern to the parser's schema
   - Supports named capture groups using `(?<name>)` syntax
+  - Use raw f-strings (`rf"..."`) for regex patterns (see [Using Raw F-Strings](#using-raw-f-strings-for-regex-patterns))
   - Returns self for method chaining
 
 - `add_timestamp(name: str, regex: str) -> Parser`
@@ -335,20 +334,21 @@ Query builder for parsing log events into structured data formats.
 
 - `to_dataframe() -> pd.DataFrame`
   - Convert parsed events to a pandas DataFrame
-  - Requires pandas (install with `pip install log-surgeon-ffi[dataframe]`)
 
 - `to_df() -> pd.DataFrame`
   - Alias for `to_dataframe()`
 
 - `to_arrow() -> pa.Table`
   - Convert parsed events to a PyArrow Table
-  - Requires pyarrow (install with `pip install log-surgeon-ffi[dataframe]`)
 
 - `to_pa() -> pa.Table`
   - Alias for `to_arrow()`
 
 - `get_rows() -> list[list]`
   - Extract rows of field values from parsed events
+
+- `get_vars() -> KeysView[str]`
+  - Get all variable names (logical capture group names) defined in the schema
 
 ### SchemaCompiler
 
@@ -403,6 +403,9 @@ Bidirectional mapping between logical (user-defined) and physical (auto-generate
 - `get_logical_name(physical_name: str) -> str`
   - Get the logical name for a physical name
 
+- `get_all_logical_names() -> KeysView[str]`
+  - Get all logical names that have been registered
+
 ### Pattern
 
 Collection of common regex patterns for log parsing.
@@ -455,10 +458,12 @@ parser = Parser(delimiters=r" \t\n,:")  # Custom delimiters
 Use named capture groups in regex patterns to extract specific fields:
 
 ```python
-parser.add_var("metric", r"metric=(?<metric_name>\w+) value=(?<value>\d+)")
+parser.add_var("metric", rf"metric=(?<metric_name>\w+) value=(?<value>\d+)")
 ```
 
 The syntax `(?<name>pattern)` creates a capture group that can be accessed as `event['name']`.
+
+**Note:** See [Using Raw F-Strings](#using-raw-f-strings-for-regex-patterns) for best practices on writing regex patterns.
 
 ### Using Raw F-Strings for Regex Patterns
 
@@ -553,8 +558,8 @@ When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schem
 git clone https://github.com/y-scope/log-surgeon-ffi-py.git
 cd log-surgeon-ffi-py
 
-# Install development dependencies
-pip install -e ".[dev]"
+# Install the project in editable mode
+pip install -e .
 
 # Build the extension
 cmake -S . -B build
@@ -564,13 +569,23 @@ cmake --build build
 ### Running Tests
 
 ```bash
+# Install test dependencies
+pip install pytest
+
+# Run tests
 python -m pytest tests/
 ```
 
 ## Requirements
 
 - Python >= 3.9
+- pandas
+- pyarrow
+
+### Build Requirements
+
 - C++20 compatible compiler
+- CMake >= 3.15
 
 ## License
 

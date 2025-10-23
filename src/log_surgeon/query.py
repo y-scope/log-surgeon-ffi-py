@@ -20,12 +20,12 @@ except ImportError:
 
 _DATAFRAME_IMPORT_ERROR = (
     "pandas is required for this operation. "
-    "Install it with: pip install log-surgeon-ffi[dataframe]"
+    "Install it with: pip install pandas"
 )
 
 _ARROW_IMPORT_ERROR = (
     "pyarrow is required for this operation. "
-    "Install it with: pip install log-surgeon-ffi[dataframe]"
+    "Install it with: pip install pyarrow"
 )
 
 
