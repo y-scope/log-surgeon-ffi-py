@@ -19,29 +19,55 @@ pip install log-surgeon-ffi
 
 **Note:** pandas and pyarrow are included as dependencies for DataFrame/Arrow support.
 
+---
+
+> **⚠️ IMPORTANT: READ BEFORE USING**
+>
+> **log-surgeon uses token-based parsing and has different regex behavior than traditional engines.**
+>
+> **You MUST read the [Key Concepts](#key-concepts) section and understand it fully before writing patterns, or you will encounter unexpected behavior and pain.**
+>
+> Critical differences:
+> - **Strongly recommended: use raw f-strings (`rf"..."`)** for regex patterns to avoid escaping issues
+> - `.*` only matches within a single token (not across delimiters)
+> - `abc|def` requires grouping: use `(abc)|(def)` instead
+> - Use `{0,1}` for optional patterns, NOT `?`
+>
+> **[→ Read Key Concepts Now](#key-concepts)**
+
+---
+
 ## Quick Start
 
 ### Basic Parsing
 
 ```python
-from log_surgeon import Parser
+from log_surgeon import Parser, PATTERN
+
+# Parse a sample log event
+log_line = "16/05/04 04:24:58 INFO Registering worker with 1 core and 4.0 GiB ram\n"
 
 # Create a parser and define extraction patterns
 parser = Parser()
-parser.add_var(
-  "memoryStore",
-  r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
-)
+parser.add_var("resource", rf"(?<memory_gb>{PATTERN.FLOAT}) GiB ram")
 parser.compile()
 
-# Parse a log event
-log_line = " INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n"
+# Parse a single event
 event = parser.parse_event(log_line)
 
 # Access extracted data
-print(f"Message: {event.get_log_message()}")
-print(f"LogType: {event.get_log_type()}")
-print(f"Capacity: {event['memory_store_capacity_GiB']}")
+print(f"Message: {event.get_log_message().strip()}")
+print(f"LogType: {event.get_log_type().strip()}")
+print(f"Parsed Logs: {event}")
+```
+
+**Output:**
+```
+Message: 16/05/04 04:24:58 INFO Registering worker with 1 core and 4.0 GiB ram
+LogType: 16/05/04 04:24:58 INFO Registering worker with 1 core and <memory_gb> GiB ram
+Parsed Logs: {
+  "core": "1"
+}
 ```
 
 ### Multiple Capture Groups
@@ -526,16 +552,150 @@ parser.compile()
 
 ## Key Concepts
 
-### Delimiters
+> **⚠️ CRITICAL: You must understand these concepts to use log-surgeon correctly.**
+>
+> log-surgeon works **fundamentally differently** from traditional regex engines like Python's `re` module, PCRE, or JavaScript regex. Skipping this section will lead to patterns that don't work as expected.
+
+### Token-Based Parsing and Delimiters
+
+**CRITICAL:** log-surgeon uses **token-based** parsing, not character-based regex matching like traditional regex engines. This is the most important difference that affects how patterns work.
+
+#### How Tokenization Works
 
 Delimiters are characters used to split log messages into tokens. The default delimiters include:
 - Whitespace: space, tab (`\t`), newline (`\n`), carriage return (`\r`)
 - Punctuation: `:`, `,`, `!`, `;`, `%`, `@`, `/`, `(`, `)`, `[`, `]`
 
+For example, with default delimiters, the log message:
+```
+"abc def ghi"
+```
+is tokenized into three tokens: `["abc", "def", "ghi"]`
+
 You can customize delimiters when creating a Parser:
 
 ```python
 parser = Parser(delimiters=r" \t\n,:")  # Custom delimiters
+```
+
+#### Token-Based Pattern Matching
+
+**Critical:** Patterns like `.*` only match **within a single token**, not across multiple tokens or delimiters.
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()  # Default delimiters include space
+parser.add_var("token", rf"(?<match>d.*)")
+parser.compile()
+
+# With "abc def ghi" tokenized as ["abc", "def", "ghi"]
+event = parser.parse_event("abc def ghi")
+
+# ✅ Matches only "def" (single token starting with 'd')
+# ❌ Does NOT match "def ghi" (would cross token boundary)
+print(event['match'])  # Output: "def"
+```
+
+**In a traditional regex engine**, `d.*` would match `"def ghi"` (everything from 'd' to end).
+**In log-surgeon**, `d.*` matches only `"def"` because patterns cannot cross delimiter boundaries.
+
+#### Why Token-Based?
+
+Token-based parsing enables:
+- **Faster parsing** by reducing search space
+- **Predictable behavior** aligned with log structure
+- **Efficient log type generation** for analytics
+
+#### Working with Token Boundaries
+
+To match across multiple tokens, you must use **character classes** like `[a-zA-Z]*` instead of `.`:
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()  # Default delimiters include space
+
+# ❌ Using .* - only matches within a single token
+parser.add_var("wrong", rf"(?<match>d.*)")  # Matches only "def"
+
+# ✅ Using character classes - matches across tokens
+parser.add_var("correct", rf"(?<match>d[a-z ]*i)")  # Matches "def ghi"
+parser.compile()
+
+event = parser.parse_event("abc def ghi")
+print(event['match'])  # Output: "def ghi"
+```
+
+**Key Rule:** Character classes like `[a-zA-Z]*`, `[a-z ]*`, or `[\w\s]*` can match across token boundaries, but `.*` cannot.
+
+#### Alternation Requires Grouping
+
+**CRITICAL:** Alternation (`|`) works differently in log-surgeon compared to traditional regex engines. You **must** use parentheses to group alternatives.
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()
+
+# ❌ WRONG: Without grouping - matches "ab" AND ("c" OR "d") AND "ef"
+parser.add_var("wrong", rf"(?<word>abc|def)")
+# In log-surgeon, this is interpreted as: "ab" + "c|d" + "ef"
+# Matches: "abcef" or "abdef" (NOT "abc" or "def")
+
+# ✅ CORRECT: With grouping - matches "abc" OR "def"
+parser.add_var("correct", rf"(?<word>(abc)|(def))")
+# Matches: "abc" or "def"
+parser.compile()
+```
+
+**In traditional regex engines**, `abc|def` means "abc" OR "def".
+**In log-surgeon**, `abc|def` means "ab" + ("c" OR "d") + "ef".
+
+**Key Rule:** Always use `(abc)|(def)` syntax for alternation to match complete alternatives.
+
+```python
+# More examples:
+parser.add_var("level", rf"(?<level>(ERROR)|(WARN)|(INFO))")  # ✅ Correct
+parser.add_var("status", rf"(?<status>(success)|(failure))")  # ✅ Correct
+parser.add_var("bad", rf"(?<status>success|failure)")         # ❌ Wrong - unexpected behavior
+```
+
+#### Optional Patterns
+
+For optional patterns, use `{0,1}` instead of `*`:
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()
+
+# ❌ Avoid using * for optional patterns (matches 0 or more)
+parser.add_var("avoid", rf"(?<level>(ERROR)|(WARN))*")  # Can match empty string or multiple repetitions
+
+# ❌ Do not use ? for optional patterns
+parser.add_var("avoid2", rf"(?<level>(ERROR)|(WARN))?")  # May not work as expected
+
+# ✅ Use {0,1} for optional patterns (matches 0 or 1)
+parser.add_var("optional", rf"(?<level>(ERROR)|(WARN)){0,1}")  # Matches 0 or 1 occurrence
+parser.compile()
+```
+
+**Best Practice:** Use `{0,1}` for optional elements. Avoid `*` (0 or more) and `?` for optional matching.
+
+You can also explicitly include delimiters in your pattern:
+
+```python
+# To match "def ghi", explicitly include the space delimiter
+parser.add_var("multi", rf"(?<match>d\w+\s+\w+)")
+# This matches "def " as one token segment, followed by "ghi"
+```
+
+Or adjust your delimiters to change tokenization behavior:
+
+```python
+# Use only newline as delimiter to treat entire lines as tokens
+parser = Parser(delimiters=r"\n")
 ```
 
 ### Named Capture Groups
@@ -552,7 +712,9 @@ The syntax `(?<name>pattern)` creates a capture group that can be accessed as `e
 
 ### Using Raw F-Strings for Regex Patterns
 
-**Best Practice:** Use raw f-strings (`rf"..."`) when specifying regex patterns to avoid escaping issues.
+> **⚠️ STRONGLY RECOMMENDED: Use raw f-strings (`rf"..."`) for all regex patterns.**
+>
+> While not absolutely required, using regular strings will likely cause escaping issues and pattern failures. Raw f-strings prevent these problems.
 
 Raw f-strings combine the benefits of:
 - **Raw strings (`r"..."`)**: No need to double-escape regex special characters like `\d`, `\w`, `\n`
@@ -608,10 +770,12 @@ parser.add_var("level", rf"(?<level>{log_level})")  # Easy to compose
 ```
 
 **Recommendation:** Consistently use `rf"..."` for all regex patterns. This approach:
-- Avoids double-escaping mistakes
+- Avoids double-escaping mistakes that break patterns
 - Makes patterns more readable
 - Allows easy use of Pattern constants and variables
 - Only requires watching for literal `{` and `}` characters (escape as `{{` and `}}`)
+
+Using regular strings (`"..."`) will require double-escaping (e.g., `"\\d+"`) which is error-prone and hard to read.
 
 ### Logical vs Physical Names
 
