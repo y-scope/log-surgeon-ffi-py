@@ -264,7 +264,10 @@ class PATTERN:
     Example: "~[MyClass.java:42?]", "~[?:100?]"
     """
 
-    JAVA_STACK_LOCATION = rf"{JAVA_FULLY_QUALIFIED_CLASS_NAME}\({LINUX_FILE_NAME}(:{INT}){{0,1}}\))( {JAVA_LOGGING_CODE_LOCATION_HINT}){{0,1}}"
+    JAVA_STACK_LOCATION = (
+        rf"{JAVA_FULLY_QUALIFIED_CLASS_NAME}\({LINUX_FILE_NAME}(:{INT}){{0,1}}\))"
+        rf"( {JAVA_LOGGING_CODE_LOCATION_HINT}){{0,1}}"
+    )
     """
     Pattern for Java stack trace location.
 

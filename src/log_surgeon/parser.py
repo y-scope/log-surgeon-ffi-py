@@ -278,7 +278,8 @@ if __name__ == "__main__":
     parser = Parser()
     parser.add_var(
         "platform",
-        r"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] (?<platform_component>.+):",
+        r"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] "
+        r"(?<platform_component>.+):",
     )
     parser.add_var(
         "memoryStore",

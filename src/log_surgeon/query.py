@@ -75,7 +75,10 @@ class Query:
             >>> query.filter(lambda event: int(event["value"]) > 50)
             >>>
             >>> # Filter by multiple conditions
-            >>> query.filter(lambda event: event["level"] == "ERROR" and "exception" in event.get_log_message())
+            >>> query.filter(
+            ...     lambda event: event["level"] == "ERROR"
+            ...     and "exception" in event.get_log_message()
+            ... )
             >>>
             >>> # Filter with try/catch for missing fields
             >>> def has_high_cpu(event):

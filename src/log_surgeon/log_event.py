@@ -110,7 +110,10 @@ class LogEvent:
 
         # Look up all physical names for this logical name
         # _group_name_resolver is always initialized by FFI layer
-        for physical_group_name in self._group_name_resolver.get_physical_names(logical_capture_group_name):  # type: ignore[union-attr]
+        physical_names = self._group_name_resolver.get_physical_names(  # type: ignore[union-attr]
+            logical_capture_group_name
+        )
+        for physical_group_name in physical_names:
             value = self._var_dict.get(physical_group_name)
             if value:
                 if raw_output or len(value) > 1:
