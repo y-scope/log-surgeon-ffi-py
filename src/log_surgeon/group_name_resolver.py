@@ -22,6 +22,7 @@ class GroupNameResolver:
         >>> phys2 = resolver.create_new_physical_name("user_id")  # "CGPrefix1"
         >>> resolver.get_logical_name(phys1)  # "user_id"
         >>> resolver.get_physical_names("user_id")  # {"CGPrefix0", "CGPrefix1"}
+
     """
 
     def __init__(self, physical_name_prefix: str) -> None:
@@ -31,6 +32,7 @@ class GroupNameResolver:
         Args:
             physical_name_prefix: Prefix for auto-generated physical names
                 (e.g., "CGPrefix" generates "CGPrefix0", "CGPrefix1", etc.)
+
         """
         # Forward mapping: logical name -> set of physical names (one-to-many)
         self._forward: dict[str, set[str]] = {}
@@ -62,6 +64,7 @@ class GroupNameResolver:
             'CGPrefix1'
             >>> resolver.create_new_physical_name("thread")
             'CGPrefix2'
+
         """
         new_physical_name = f"{self._physical_name_prefix}{self._next_physical_name_id}"
         self._next_physical_name_id += 1
@@ -98,6 +101,7 @@ class GroupNameResolver:
             'CGPrefix1'
             >>> resolver.get_physical_names("user_id")
             {'CGPrefix0', 'CGPrefix1'}
+
         """
         return self._forward[logical_name]
 
@@ -120,6 +124,7 @@ class GroupNameResolver:
             'CGPrefix0'
             >>> resolver.get_logical_name("CGPrefix0")
             'user_id'
+
         """
         return self._reverse[physical_name]
 
@@ -138,5 +143,6 @@ class GroupNameResolver:
             'CGPrefix1'
             >>> resolver.get_all_logical_names()
             dict_keys(['user_id', 'thread'])
+
         """
         return self._forward.keys()
