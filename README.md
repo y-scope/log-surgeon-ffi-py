@@ -29,6 +29,24 @@ Log Surgeon is built to accommodate structural variability: values may shift pos
 - **Parse streams** efficiently for large-scale log processing
 - **Export data** to pandas DataFrames and PyArrow Tables
 
+### Structured Output and Downstream Capabilities
+
+Unstructured log data is automatically transformed into structured semantic representations:
+
+- **Log Types (Templates)**: Variables are replaced with placeholders to create reusable templates. For example, ~200,000 Spark log messages can be distilled into just 55 distinct log template types, enabling efficient pattern analysis and anomaly detection.
+
+- **Semantic Variables**: Extracted key-value pairs with semantic context (e.g., `app_id`, `app_name`, `worker_id`) that can be directly used for analysis.
+
+This structured output unlocks powerful downstream capabilities:
+
+- **Knowledge Graph Construction**: Build relationship graphs between entities extracted from logs (e.g., linking `app_id` → `app_name` → `worker_id`). The structured output from log-surgeon provides an ideal foundation for tools like [Stitch](https://www.usenix.org/conference/osdi16/technical-sessions/presentation/zhao), which uses flow reconstruction from logs to perform non-intrusive performance profiling and debugging across distributed systems.
+
+- **Template-Based Summarization**: Compress massive datasets into compact template sets for human and agent consumption. Log templates serve as natural tokens for LLMs, enabling efficient context windows - instead of feeding millions of raw log lines, provide ~50-100 distinct templates with statistics.
+
+- **Hybrid Search**: Combine free-text search with structured queries. Log types enable auto-completion and query suggestions on large datasets - instead of searching through millions of raw log lines, search across a compact set of templates first. Then project and filter on structured variables (e.g., `status == "ERROR"`, `response_time > 1000`), and aggregate for analysis - all in one unified workflow.
+
+- **Agentic Automation**: Enable AI agents to understand and act on structured log data. Agents can query by template patterns, analyze variable distributions, identify anomalies, and automate debugging workflows using structured rather than raw text.
+
 ## When to Use log-surgeon
 
 ✅ **Good fit:**
