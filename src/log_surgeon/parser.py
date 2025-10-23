@@ -261,9 +261,10 @@ if __name__ == "__main__":
     )
 
     print("Example 1: Basic parsing")
-    print(f"Message: {event.get_log_message().strip()}")
-    print(f"LogType: {event.get_log_type()}")
-    print(f"Capture groups: {event}")
+    if event:
+        print(f"Message: {event.get_log_message().strip()}")
+        print(f"LogType: {event.get_log_type()}")
+        print(f"Capture groups: {event}")
     print()
 
     # Example 2: Extract multiple capture groups (platform metadata + application data)
@@ -283,6 +284,7 @@ if __name__ == "__main__":
     )
 
     print("Example 2: Multiple capture groups")
-    print(f"Message: {event.get_log_message().strip()}")
-    print(f"LogType: {event.get_log_type()}")
-    print(f"Capture groups: {event}")
+    if event:
+        print(f"Message: {event.get_log_message().strip()}")
+        print(f"LogType: {event.get_log_type()}")
+        print(f"Capture groups: {event}")
