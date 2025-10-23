@@ -67,12 +67,14 @@ This structured output unlocks powerful downstream capabilities:
 pip install log-surgeon-ffi
 ```
 
+This installs the library with pandas and PyArrow support for DataFrame/Arrow table exports.
+
 **Verify installation:**
 ```bash
 python -c "from log_surgeon import Parser; print('✓ Installation successful')"
 ```
 
-**Note:** pandas and pyarrow are included as dependencies for DataFrame/Arrow support.
+**Optional:** If you only need core parsing functionality without DataFrame/Arrow exports, you can install a minimal version (though pandas and PyArrow are included by default for convenience).
 
 ## Getting Started
 

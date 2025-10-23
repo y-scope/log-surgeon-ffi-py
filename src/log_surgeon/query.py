@@ -37,10 +37,14 @@ except ImportError:
     pa = None
 
 _DATAFRAME_IMPORT_ERROR = (
-    "pandas is required for this operation. Install it with: pip install pandas"
+    "pandas is required for this operation. "
+    "Install it with: pip install 'log-surgeon-ffi[dataframe]' or pip install pandas"
 )
 
-_ARROW_IMPORT_ERROR = "pyarrow is required for this operation. Install it with: pip install pyarrow"
+_ARROW_IMPORT_ERROR = (
+    "pyarrow is required for this operation. "
+    "Install it with: pip install 'log-surgeon-ffi[arrow]' or pip install pyarrow"
+)
 
 
 class Query:
