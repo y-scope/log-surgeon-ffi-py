@@ -213,6 +213,76 @@ print(df)
 
 The `"*"` wildcard expands to all variables defined in the schema and can be combined with other fields like `@log_type` and `@log_message`.
 
+### Analyzing Log Types
+
+Discover and analyze log patterns in your data using log type analysis methods:
+
+```python
+from log_surgeon import Parser, Query
+
+parser = Parser()
+parser.add_var("metric", rf"value=(?<value>\d+)")
+parser.add_var("status", rf"status=(?<status>\w+)")
+parser.compile()
+
+log_data = """
+2024-01-01 INFO: Processing value=42
+2024-01-01 INFO: Processing value=100
+2024-01-01 WARN: System status=degraded
+2024-01-01 INFO: Processing value=7
+2024-01-01 ERROR: System status=failed
+"""
+
+query = Query(parser).from_(log_data)
+
+# Get all unique log types
+print("Unique log types:")
+for log_type in query.get_log_types():
+  print(f"  {log_type}")
+
+# Reset stream for next analysis
+query.from_(log_data)
+
+# Get log type occurrence counts
+print("\nLog type counts:")
+counts = query.get_log_type_counts()
+for log_type, count in sorted(counts.items(), key=lambda x: -x[1]):
+  print(f"  {count:3d}  {log_type}")
+
+# Reset stream for next analysis
+query.from_(log_data)
+
+# Get sample messages for each log type
+print("\nLog type samples:")
+samples = query.get_log_type_with_sample(sample_size=2)
+for log_type, messages in samples.items():
+  print(f"  {log_type}")
+  for msg in messages:
+    print(f"    - {msg.strip()}")
+```
+
+**Output:**
+```
+Unique log types:
+  <timestamp> INFO: Processing <metric>
+  <timestamp> WARN: System <status>
+  <timestamp> ERROR: System <status>
+
+Log type counts:
+    3  <timestamp> INFO: Processing <metric>
+    1  <timestamp> WARN: System <status>
+    1  <timestamp> ERROR: System <status>
+
+Log type samples:
+  <timestamp> INFO: Processing <metric>
+    - 2024-01-01 INFO: Processing value=42
+    - 2024-01-01 INFO: Processing value=100
+  <timestamp> WARN: System <status>
+    - 2024-01-01 WARN: System status=degraded
+  <timestamp> ERROR: System <status>
+    - 2024-01-01 ERROR: System status=failed
+```
+
 ## API Reference
 
 ### Parser
@@ -349,6 +419,21 @@ Query builder for parsing log events into structured data formats.
 
 - `get_vars() -> KeysView[str]`
   - Get all variable names (logical capture group names) defined in the schema
+
+- `get_log_types() -> Generator[str, None, None]`
+  - Get all unique log types from parsed events
+  - Yields log types in the order they are first encountered
+  - Useful for discovering log patterns in your data
+
+- `get_log_type_counts() -> dict[str, int]`
+  - Get count of occurrences for each unique log type
+  - Returns dictionary mapping log types to their counts
+  - Useful for analyzing log type distribution
+
+- `get_log_type_with_sample(sample_size: int = 3) -> dict[str, list[str]]`
+  - Get sample log messages for each unique log type
+  - Returns dictionary mapping log types to lists of sample messages
+  - Useful for understanding what actual messages match each template
 
 ### SchemaCompiler
 
