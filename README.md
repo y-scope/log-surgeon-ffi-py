@@ -555,11 +555,6 @@ Query builder for parsing log events into structured data formats.
   - Alias for `from_()`
   - Returns self for method chaining
 
-- `from_stream(stream: io.StringIO | io.BytesIO) -> Query`
-  - Set the input stream to parse (legacy method)
-  - Consider using `from_()` for more flexible input handling
-  - Returns self for method chaining
-
 - `validate_query() -> Query`
   - Validate that the query is properly configured
   - Returns self for method chaining

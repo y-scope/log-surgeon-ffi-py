@@ -37,7 +37,7 @@ class Query:
         >>> parser = Parser()
         >>> parser.add_var("metric", r"value=(?<value>\\d+)")
         >>> parser.compile()
-        >>> query = Query(parser).select(["value"]).from_stream(stream)
+        >>> query = Query(parser).select(["value"]).from_(log_data)
         >>> df = query.to_dataframe()
 
     """
@@ -186,20 +186,6 @@ class Query:
 
         self.stream = input_stream
         return self
-
-    def from_stream(self, stream: io.StringIO | io.BytesIO) -> "Query":
-        """
-        Set the input stream to parse.
-
-        Args:
-            stream: Input stream containing log data
-
-        Returns:
-            Self for method chaining
-
-        """
-        # Delegate to from_() for proper type conversion
-        return self.from_(stream)
 
     def validate_query(self) -> "Query":
         """
@@ -409,7 +395,7 @@ if __name__ == "__main__":
     query = (
         Query(parser)
         .select(["@log_type", "@log_message", "*"])
-        .from_stream(log_data)
+        .from_(log_data)
         .validate_query()
     )
 
@@ -420,7 +406,7 @@ if __name__ == "__main__":
     print()
 
     # Reset stream for second export
-    query.from_stream(log_data)
+    query.from_(log_data)
 
     # Export to PyArrow Table
     arrow_table = query.to_arrow()
