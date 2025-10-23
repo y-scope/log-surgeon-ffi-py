@@ -12,6 +12,7 @@ class Variable:
         name: Variable name
         regex: Regular expression pattern
         capture_group_names: Set of logical capture group names in the pattern
+
     """
 
     def __init__(self, name: str, regex: str, capture_group_names: set[str]) -> None:
@@ -22,6 +23,7 @@ class Variable:
             name: Variable name
             regex: Regular expression pattern
             capture_group_names: Set of logical capture group names
+
         """
         self.name = name
         self.regex = regex
