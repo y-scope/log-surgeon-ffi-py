@@ -12,7 +12,7 @@ log-surgeon-ffi provides a Pythonic interface to the log-surgeon C++ library, en
 
 **Core Concepts**: [Token-Based Parsing](#token-based-parsing-and-delimiters) • [Named Captures](#named-capture-groups) • [Raw F-Strings](#using-raw-f-strings-for-regex-patterns)
 
-**Reference**: [Parser API](#parser) • [Query API](#query) • [Pattern Constants](#pattern)
+**Reference**: [Parser API](#parser) • [Query API](#query) • [PATTERN Constants](#pattern)
 
 ### Why Log Surgeon?
 
@@ -324,12 +324,14 @@ Each log type shows the template structure with variable placeholders (`<level>`
 
 ### Using Pattern Constants
 
+The `PATTERN` class provides pre-built regex patterns for common log elements like IP addresses, UUIDs, numbers, and file paths. See the [PATTERN reference](#pattern) for the complete list of available patterns.
+
 ```python
-from log_surgeon import Parser, Pattern
+from log_surgeon import Parser, PATTERN
 
 parser = Parser()
-parser.add_var("network", rf"IP: (?<ip>{Pattern.IPV4}) UUID: (?<id>{Pattern.UUID})")
-parser.add_var("metrics", rf"value=(?<value>{Pattern.FLOAT})")
+parser.add_var("network", rf"IP: (?<ip>{PATTERN.IPV4}) UUID: (?<id>{PATTERN.UUID})")
+parser.add_var("metrics", rf"value=(?<value>{PATTERN.FLOAT})")
 parser.compile()
 
 log_line = "IP: 192.168.1.1 UUID: 550e8400-e29b-41d4-a716-446655440000 value=42.5"
@@ -338,6 +340,13 @@ event = parser.parse_event(log_line)
 print(f"IP: {event['ip']}")
 print(f"UUID: {event['id']}")
 print(f"Value: {event['value']}")
+```
+
+**Output:**
+```
+IP: 192.168.1.1
+UUID: 550e8400-e29b-41d4-a716-446655440000
+Value: 42.5
 ```
 
 ### Export to DataFrame
@@ -723,36 +732,101 @@ Bidirectional mapping between logical (user-defined) and physical (auto-generate
 - `get_all_logical_names() -> KeysView[str]`
   - Get all logical names that have been registered
 
-### Pattern
+### PATTERN
 
-Collection of common regex patterns for log parsing.
+Collection of pre-built regex patterns optimized for log parsing. These patterns follow log-surgeon's syntax requirements and are ready to use with named capture groups.
 
-#### Class Attributes
+#### Available Patterns
 
-- `Pattern.UUID`
-  - Pattern for UUID (Universally Unique Identifier) strings
+**Network Patterns**
 
-- `Pattern.IP_OCTET`
-  - Pattern for a single IPv4 octet (0-255)
+| Pattern | Description | Example Match |
+|---------|-------------|---------------|
+| `PATTERN.UUID` | UUID (Universally Unique Identifier) | `550e8400-e29b-41d4-a716-446655440000` |
+| `PATTERN.IP_OCTET` | Single IPv4 octet (0-255) | `192`, `10`, `255` |
+| `PATTERN.IPV4` | IPv4 address | `192.168.1.1`, `10.0.0.1` |
+| `PATTERN.PORT` | Network port number (1-5 digits) | `80`, `8080`, `65535` |
 
-- `Pattern.IPV4`
-  - Pattern for IPv4 addresses
+**Numeric Patterns**
 
-- `Pattern.INT`
-  - Pattern for integer numbers (with optional negative sign)
+| Pattern | Description | Example Match |
+|---------|-------------|---------------|
+| `PATTERN.INT` | Integer with optional negative sign | `42`, `-123`, `0` |
+| `PATTERN.FLOAT` | Float with optional negative sign | `3.14`, `-123.456`, `0.5` |
 
-- `Pattern.FLOAT`
-  - Pattern for floating-point numbers (with optional negative sign)
+**File System Patterns**
+
+| Pattern | Description | Example Match |
+|---------|-------------|---------------|
+| `PATTERN.LINUX_FILE_NAME_CHARSET` | Character set for Linux file names | `a-zA-Z0-9 ._-` |
+| `PATTERN.LINUX_FILE_NAME` | Linux file name | `app.log`, `config-2024.yaml` |
+| `PATTERN.LINUX_FILE_PATH` | Linux file path (relative) | `logs/app.log`, `var/log/system.log` |
+
+**Character Sets and Word Patterns**
+
+| Pattern | Description | Example Match |
+|---------|-------------|---------------|
+| `PATTERN.JAVA_IDENTIFIER_CHARSET` | Java identifier character set | `a-zA-Z0-9_` |
+| `PATTERN.JAVA_IDENTIFIER` | Java identifier | `myVariable`, `$value`, `Test123` |
+| `PATTERN.LOG_LINE_CHARSET` | Common log line characters | Alphanumeric + symbols + whitespace |
+| `PATTERN.LOG_LINE` | General log line content | `Error: connection timeout` |
+| `PATTERN.LOG_LINE_NO_WHITE_SPACE_CHARSET` | Log line chars without whitespace | Alphanumeric + symbols only |
+| `PATTERN.LOG_LINE_NO_WHITE_SPACE` | Log content without spaces | `ERROR`, `/var/log/app.log` |
+
+**Java-Specific Patterns**
+
+| Pattern | Description | Example Match |
+|---------|-------------|---------------|
+| `PATTERN.JAVA_LITERAL_CHARSET` | Java literal character set | `a-zA-Z0-9_$` |
+| `PATTERN.JAVA_PACKAGE_SEGMENT` | Single Java package segment | `com.`, `example.` |
+| `PATTERN.JAVA_CLASS_NAME` | Java class name | `MyClass`, `ArrayList` |
+| `PATTERN.JAVA_FULLY_QUALIFIED_CLASS_NAME` | Fully qualified class name | `java.util.ArrayList` |
+| `PATTERN.JAVA_LOGGING_CODE_LOCATION_HINT` | Java logging location hint | `~[MyClass.java:42?]` |
+| `PATTERN.JAVA_STACK_LOCATION` | Java stack trace location | `java.util.ArrayList.add(ArrayList.java:123)` |
 
 #### Example Usage
 
 ```python
-from log_surgeon import Parser, Pattern
+from log_surgeon import Parser, PATTERN
 
 parser = Parser()
-parser.add_var("ip", rf"IP: (?<ip_address>{Pattern.IPV4})")
-parser.add_var("id", rf"ID: (?<uuid>{Pattern.UUID})")
-parser.add_var("value", rf"value=(?<val>{Pattern.FLOAT})")
+
+# Network patterns
+parser.add_var("network", rf"IP: (?<ip>{PATTERN.IPV4}) Port: (?<port>{PATTERN.PORT})")
+
+# Numeric patterns
+parser.add_var("metrics", rf"value=(?<value>{PATTERN.FLOAT}) count=(?<count>{PATTERN.INT})")
+
+# File system patterns
+parser.add_var("file", rf"Opening (?<filepath>{PATTERN.LINUX_FILE_PATH})")
+
+# Java patterns
+parser.add_var("exception", rf"at (?<stack>{PATTERN.JAVA_STACK_LOCATION})")
+
+parser.compile()
+```
+
+#### Composing Patterns
+
+PATTERN constants can be composed to build more complex patterns:
+
+```python
+from log_surgeon import Parser, PATTERN
+
+parser = Parser()
+
+# Combine multiple patterns
+parser.add_var(
+    "server_info",
+    rf"Server (?<name>{PATTERN.JAVA_IDENTIFIER}) at (?<ip>{PATTERN.IPV4}):(?<port>{PATTERN.PORT})"
+)
+
+# Use character sets to build custom patterns
+parser.add_var(
+    "custom_id",
+    rf"ID-(?<id>[{PATTERN.JAVA_IDENTIFIER_CHARSET}]+)"
+)
+
 parser.compile()
 ```
 
