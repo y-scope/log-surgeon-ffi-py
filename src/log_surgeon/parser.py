@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING, BinaryIO, TextIO
+from typing import BinaryIO, TextIO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Generator, KeysView

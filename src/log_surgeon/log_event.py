@@ -63,7 +63,7 @@ class LogEvent:
             logical_group_name = self._group_name_resolver.get_logical_name(physical_group_name)  # type: ignore[union-attr]
             return f"<{logical_group_name}>"
 
-        log_type_value = self._var_dict.get('@LogType')
+        log_type_value = self._var_dict.get("@LogType")
         if not isinstance(log_type_value, str):
             msg = "LogType not found or invalid in LogEvent"
             raise RuntimeError(msg)

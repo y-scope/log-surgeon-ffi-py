@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING, BinaryIO, Callable, TextIO
+from typing import BinaryIO, Callable, TextIO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Generator
