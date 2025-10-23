@@ -90,17 +90,29 @@ class Query:
         Select fields to extract from log events.
 
         Args:
-            fields: List of field names, or ["*"] for all fields
+            fields: List of field names to extract. Supports:
+                - Variable names defined in the schema (e.g., "user_id", "value")
+                - "*" to select all variables defined in the schema
+                - "@log_type" to include the generated log type (template)
+                - "@log_message" to include the original log message
 
         Returns:
             Self for method chaining
 
-        Raises:
-            AttributeError: If "*" is combined with other field names
+        Example:
+            >>> # Select specific variables
+            >>> query.select(["user_id", "value"])
+            >>>
+            >>> # Select all variables
+            >>> query.select(["*"])
+            >>>
+            >>> # Include log type and message with variables
+            >>> query.select(["@log_type", "@log_message", "user_id", "value"])
+            >>>
+            >>> # Expand all variables and include metadata
+            >>> query.select(["@log_type", "@log_message", "*"])
         """
         if "*" in fields:
-            if len(fields) > 1:
-                raise AttributeError("You cannot combine \"*\" with other field names.")
             fields = list(self.parser.get_vars())
 
         self.fields = fields
@@ -269,8 +281,12 @@ class Query:
             if self.predicate is not None and not self.predicate(event):
                 continue
 
-            row = [event.get_capture_group_str_representation(field) for field in self.fields]
-            rows.append(row)
+            rows.append([
+                event.get_log_type() if field == "@log_type"
+                else event.get_log_message() if field == "@log_message"
+                else event.get_capture_group_str_representation(field)
+                for field in self.fields
+            ])
         return rows
 
 if __name__ == "__main__":
@@ -286,7 +302,7 @@ if __name__ == "__main__":
 
     query = (
         Query(parser)
-        .select(["memory_store_capacity_GiB"])
+        .select(["@log_type", "@log_message", "*"])
         .from_stream(log_data)
         .validate_query()
     )

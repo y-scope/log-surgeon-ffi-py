@@ -88,8 +88,11 @@ class LogEvent:
             ['error1', 'error2']
         """
         # Special case: @LogType returns the resolved log type
-        if logical_capture_group_name == "@LogType":
+        if logical_capture_group_name == "@log_type":
             return self.get_log_type()
+
+        if logical_capture_group_name == "@log_message":
+            return self.get_log_message()
 
         # Look up all physical names for this logical name
         for physical_group_name in self._group_name_resolver.get_physical_names(logical_capture_group_name):
