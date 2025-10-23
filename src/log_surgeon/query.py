@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, TextIO, BinaryIO, Callable
+from typing import TYPE_CHECKING, TextIO, BinaryIO, Callable, Generator
 
 from log_surgeon.parser import Parser
 from log_surgeon.log_event import LogEvent
@@ -288,6 +288,88 @@ class Query:
                 for field in self.fields
             ])
         return rows
+
+    def get_log_types(self) -> Generator[str, None, None]:
+        """
+        Get all unique log types from the parsed events.
+
+        Yields log types in the order they are first encountered.
+
+        Yields:
+            Unique log type strings (templates) from parsed events
+
+        Example:
+            >>> query = Query(parser).from_(log_data)
+            >>> for log_type in query.get_log_types():
+            ...     print(log_type)
+            <timestamp> INFO: Processing <metric>
+            <timestamp> WARN: Error in <component>
+        """
+        seen_log_types: set[str] = set()
+        for event in self.parser.parse(self.stream):
+            log_type = event.get_log_type()
+            if log_type not in seen_log_types:
+                seen_log_types.add(log_type)
+                yield log_type
+
+    def get_log_type_counts(self) -> dict[str, int]:
+        """
+        Get count of occurrences for each unique log type.
+
+        Returns:
+            Dictionary mapping log types to their occurrence counts
+
+        Example:
+            >>> query = Query(parser).from_(log_data)
+            >>> counts = query.get_log_type_counts()
+            >>> for log_type, count in counts.items():
+            ...     print(f"{count:5d} {log_type}")
+                42 <timestamp> INFO: Processing <metric>
+                 7 <timestamp> WARN: Error in <component>
+        """
+        log_type_counts: dict[str, int] = {}
+        for event in self.parser.parse(self.stream):
+            log_type = event.get_log_type()
+            log_type_counts[log_type] = log_type_counts.get(log_type, 0) + 1
+        return log_type_counts
+
+    def get_log_type_with_sample(self, sample_size: int = 3) -> dict[str, list[str]]:
+        """
+        Get sample log messages for each unique log type.
+
+        Collects up to `sample_size` example messages for each log type encountered.
+        Useful for understanding what actual log messages match each template.
+
+        Args:
+            sample_size: Maximum number of sample messages to collect per log type.
+                Default is 3.
+
+        Returns:
+            Dictionary mapping log types to lists of sample log messages
+
+        Example:
+            >>> query = Query(parser).from_(log_data)
+            >>> samples = query.get_log_type_with_sample(sample_size=2)
+            >>> for log_type, messages in samples.items():
+            ...     print(f"Log Type: {log_type}")
+            ...     for msg in messages:
+            ...         print(f"  - {msg}")
+            Log Type: <timestamp> INFO: Processing <metric>
+              - 2024-01-01 INFO: Processing value=42
+              - 2024-01-01 INFO: Processing value=100
+        """
+        log_type_samples: dict[str, list[str]] = {}
+        for event in self.parser.parse(self.stream):
+            log_type = event.get_log_type()
+
+            # Initialize list for new log types or append if under sample size
+            if log_type not in log_type_samples:
+                log_type_samples[log_type] = [event.get_log_message()]
+            elif len(log_type_samples[log_type]) < sample_size:
+                log_type_samples[log_type].append(event.get_log_message())
+
+        return log_type_samples
+
 
 if __name__ == "__main__":
     # Example: Extract metrics from logs and export to DataFrame
