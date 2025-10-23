@@ -64,7 +64,7 @@ class PATTERN:
     # Numeric Patterns
     # ============================================================================
 
-    INT = r"\-{0,1}[0-9]+"
+    INT = rf"\-{{0,1}}[0-9]+"
     """
     Pattern for integer numbers with optional negative sign.
 
