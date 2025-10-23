@@ -1,48 +1,59 @@
 # log-surgeon-ffi Examples
 
-This directory contains example scripts demonstrating how to use log-surgeon-ffi.
+This directory contains example scripts demonstrating how to use log-surgeon-ffi. These examples correspond to the Quick Start examples in the main README.
 
 ## Running Examples
 
 Each example can be run directly with Python:
 
 ```bash
-python examples/parser_basic.py
-python examples/parser_multiple_groups.py
-python examples/query_dataframe_export.py
+python examples/basic_parsing.py
+python examples/multiple_capture_groups.py
+python examples/export_to_dataframe.py
+python examples/filtering_events.py
 ```
 
 Or from the project root:
 
 ```bash
-python -m examples.parser_basic
-python -m examples.parser_multiple_groups
-python -m examples.query_dataframe_export
+python -m examples.basic_parsing
+python -m examples.multiple_capture_groups
+python -m examples.export_to_dataframe
+python -m examples.filtering_events
 ```
 
 ## Examples
 
 ### Parser Examples
 
-- **`parser_basic.py`** - Extract a single capture group from a log message
-  - Shows basic parser setup and compilation
-  - Demonstrates single variable extraction
+- **`basic_parsing.py`** - Basic parsing with PATTERN constants
+  - Extract a single capture group using PATTERN.FLOAT
+  - Shows parser setup, compilation, and event extraction
+  - Demonstrates accessing log message, log type, and parsed fields
 
-- **`parser_multiple_groups.py`** - Extract multiple capture groups
-  - Shows how to define multiple variables
-  - Extracts both platform metadata and application data
+- **`multiple_capture_groups.py`** - Complex multi-line parsing
+  - Parse Java stack traces with multiple capture groups
+  - Demonstrates timestamp-based event separation
+  - Extracts scalar fields (level, IP, port) and array fields (stack traces)
+  - Shows automatic aggregation of repeated capture groups
 
 ### Query Examples
 
-- **`query_dataframe_export.py`** - Export parsed logs to DataFrame and Arrow Table
-  - Demonstrates query builder pattern
-  - Shows exporting to pandas DataFrame
-  - Shows exporting to PyArrow Table
+- **`export_to_dataframe.py`** - Export to pandas DataFrame
+  - Use Query builder to select specific fields
+  - Export parsed logs to pandas DataFrame
+  - Demonstrates fluent query interface
+
+- **`filtering_events.py`** - Filter log events
+  - Apply filter predicate to select specific events
+  - Shows lambda-based filtering
+  - Export filtered results to DataFrame
 
 ## More Examples
 
-For more comprehensive examples, see the main [README.md](../README.md) which includes:
+For additional examples and use cases, see the main [README.md](../README.md) which includes:
 - Stream parsing with timestamps
-- Using pattern constants
-- Filtering events
-- Log type analysis
+- Using pattern constants (IPV4, UUID, FLOAT, etc.)
+- Including log type and message in output
+- Analyzing log types and patterns
+- Log type counting and sampling

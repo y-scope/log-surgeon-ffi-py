@@ -68,11 +68,7 @@ class LogEvent:
             msg = "LogType not found or invalid in LogEvent"
             raise TypeError(msg)
 
-        resolved_logtype = re.sub(
-            r"<(CGPrefix\d+)>",
-            resolve_physical_group_name,
-            log_type_value
-        )
+        resolved_logtype = re.sub(r"<(CGPrefix\d+)>", resolve_physical_group_name, log_type_value)
         return f"{resolved_logtype}"
 
     def get_capture_group(

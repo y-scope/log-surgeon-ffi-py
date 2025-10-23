@@ -1,4 +1,5 @@
-"""Query builder for extracting and exporting structured log data.
+"""
+Query builder for extracting and exporting structured log data.
 
 This module provides the Query class, which offers a fluent interface for:
 - Selecting specific fields from parsed log events
@@ -92,11 +93,8 @@ class Query:
             >>> # Filter by field value
             >>> query.filter(lambda event: int(event["value"]) > 50)
             >>>
-            >>> # Filter by multiple conditions (use 'and' in single predicate)
-            >>> query.filter(
-            ...     lambda event: event["level"] == "ERROR"
-            ...     and "exception" in event.get_log_message()
-            ... )
+            >>> # Filter by multiple conditions (combine with 'and'/'or')
+            >>> query.filter(lambda event: event["level"] == "ERROR" and "exception" in str(event))
             >>>
             >>> # Filter with try/catch for missing fields
             >>> def has_high_cpu(event):
