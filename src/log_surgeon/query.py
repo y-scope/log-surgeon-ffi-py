@@ -57,7 +57,7 @@ class Query:
         self.parser: Parser = parser
         self.predicate: Callable[[LogEvent], bool] | None = None
 
-    def filter(self, predicate: Callable[[LogEvent], bool]) -> "Query":
+    def filter(self, predicate: Callable[[LogEvent], bool]) -> Query:
         """
         Filter log events using a predicate function.
 
@@ -87,7 +87,7 @@ class Query:
         self.predicate = predicate
         return self
 
-    def select(self, fields: list[str]) -> "Query":
+    def select(self, fields: list[str]) -> Query:
         """
         Select fields to extract from log events.
 
@@ -121,7 +121,7 @@ class Query:
         self.fields = fields
         return self
 
-    def select_from(self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> "Query":
+    def select_from(self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query:
         """
         Alias for from_().
 
@@ -139,7 +139,7 @@ class Query:
         """
         return self.from_(input)
 
-    def from_(self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> "Query":
+    def from_(self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query:
         """
         Set the input source to parse.
 
@@ -191,7 +191,7 @@ class Query:
         self.stream = input_stream
         return self
 
-    def validate_query(self) -> "Query":
+    def validate_query(self) -> Query:
         """
         Validate that the query is properly configured.
 
@@ -213,7 +213,7 @@ class Query:
             raise AttributeError(msg)
         return self
 
-    def to_df(self) -> "pd.DataFrame":
+    def to_df(self) -> pd.DataFrame:
         """
         Alias for to_dataframe().
 
@@ -223,7 +223,7 @@ class Query:
         """
         return self.to_dataframe()
 
-    def to_dataframe(self) -> "pd.DataFrame":
+    def to_dataframe(self) -> pd.DataFrame:
         """
         Convert parsed events to a pandas DataFrame.
 
@@ -240,7 +240,7 @@ class Query:
         rows = self.get_rows()
         return pd.DataFrame(rows, columns=self.fields)
 
-    def to_pa(self) -> "pa.Table":
+    def to_pa(self) -> pa.Table:
         """
         Alias for to_arrow().
 
@@ -250,7 +250,7 @@ class Query:
         """
         return self.to_arrow()
 
-    def to_arrow(self) -> "pa.Table":
+    def to_arrow(self) -> pa.Table:
         """
         Convert parsed events to a PyArrow Table.
 

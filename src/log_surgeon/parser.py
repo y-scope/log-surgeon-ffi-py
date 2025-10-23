@@ -50,7 +50,7 @@ class Parser:
 
     def add_var(
         self, name: str, regex: str, hide_var_name_if_named_group_present: bool = True
-    ) -> "Parser":
+    ) -> Parser:
         """
         Add a variable pattern to the parser's schema.
 
@@ -67,7 +67,7 @@ class Parser:
         self._schema_compiler.add_var(name, regex, hide_var_name_if_named_group_present)
         return self
 
-    def add_timestamp(self, name: str, regex: str) -> "Parser":
+    def add_timestamp(self, name: str, regex: str) -> Parser:
         r"""
         Add a timestamp pattern to the parser's schema.
 
