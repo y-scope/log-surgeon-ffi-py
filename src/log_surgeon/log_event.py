@@ -28,7 +28,7 @@ class LogEvent:
 
     def __init__(self) -> None:
         """Initialize an empty LogEvent."""
-        self._log_message: str = ""
+        self._log_message: str | None = None
         self._var_dict: dict[str, str | list[str | int | float]] = {}
         self._group_name_resolver: GroupNameResolver | None = None
 
@@ -40,6 +40,7 @@ class LogEvent:
             The raw log message string
 
         """
+        assert self._log_message is not None, "LogEvent._log_message not initialized by FFI layer"
         return self._log_message
 
     def get_log_type(self) -> str:
