@@ -2,8 +2,8 @@
 
 import re
 
-from log_surgeon.variable import Variable
 from log_surgeon.group_name_resolver import GroupNameResolver
+from log_surgeon.variable import Variable
 
 DEFAULT_DELIMITERS = r" \t\r\n:,!;%@/\(\)\[\]"
 """Default delimiter characters for tokenization."""
@@ -11,15 +11,15 @@ DEFAULT_DELIMITERS = r" \t\r\n:,!;%@/\(\)\[\]"
 LOG_SURGEON_HIDDEN_VARIABLE_PREFIX = "LogSurgeonHiddenVariables"
 """Prefix for auto-generated hidden variable names."""
 
-_VARIABLE_EXISTS_ERROR = "Variable \"{name}\" already exists and must be unique."
+_VARIABLE_EXISTS_ERROR = 'Variable "{name}" already exists and must be unique.'
 _VARIABLE_DELIMITER_CONFLICT_ERROR = (
-    "Variable \"{name}\" contains characters that conflict with "
-    "the specified delimiters: \"{delimiters}\""
+    'Variable "{name}" contains characters that conflict with '
+    'the specified delimiters: "{delimiters}"'
 )
 
 
 class SchemaCompiler:
-    """
+    r"""
     Compiler for constructing log-surgeon schema definitions.
 
     The SchemaCompiler provides a fluent interface for defining variables, timestamps,
@@ -31,6 +31,7 @@ class SchemaCompiler:
         >>> compiler.add_var("metric", r"value=(?<value>\\d+)")
         >>> compiler.add_timestamp("ts", r"\\d{4}-\\d{2}-\\d{2}")
         >>> schema = compiler.compile()
+
     """
 
     def __init__(self, delimiters: str = DEFAULT_DELIMITERS) -> None:
@@ -40,6 +41,7 @@ class SchemaCompiler:
         Args:
             delimiters: String of delimiter characters for tokenization.
                 Default includes space, tab, newline, and common punctuation.
+
         """
         self.delimiters: str = delimiters
         self.decoded_delimiters: str = delimiters.encode().decode("unicode_escape")
@@ -60,6 +62,7 @@ class SchemaCompiler:
 
         Returns:
             GroupNameResolver for mapping logical to physical capture group names
+
         """
         return self.capture_group_name_resolver
 
@@ -73,15 +76,13 @@ class SchemaCompiler:
 
         Returns:
             Self for method chaining
+
         """
         self.timestamps[name] = regex
         return self
 
     def add_var(
-        self,
-        name: str,
-        regex: str,
-        hide_var_name_if_named_group_present: bool = True
+        self, name: str, regex: str, hide_var_name_if_named_group_present: bool = True
     ) -> "SchemaCompiler":
         """
         Add a variable pattern to the schema.
@@ -98,23 +99,25 @@ class SchemaCompiler:
         Raises:
             AttributeError: If variable name conflicts with existing names
             ValueError: If variable/capture names contain delimiter characters
+
         """
         # Extract capture group names
         converted_regex = regex.replace("(?<", "(?P<")
         logical_capture_group_names = set(re.compile(converted_regex).groupindex.keys())
         if len(logical_capture_group_names) < 1:
-            raise ValueError(f"Pattern requires at least one named capture group (e.g., (?<name>...). "
-                             f"Provided: {regex}")
+            raise ValueError(
+                f"Pattern requires at least one named capture group (e.g., (?<name>...). "
+                f"Provided: {regex}"
+            )
 
         # Replace user-provided logical capture group name in regex pattern with
         # auto-generated physical capture group name
         for logical_capture_group_name in logical_capture_group_names:
-            physical_capture_group_name = (
-                self.capture_group_name_resolver.create_new_physical_name(logical_capture_group_name))
+            physical_capture_group_name = self.capture_group_name_resolver.create_new_physical_name(
+                logical_capture_group_name
+            )
             regex = re.sub(
-                rf"\(\?<{logical_capture_group_name}>",
-                f"(?<{physical_capture_group_name}>",
-                regex
+                rf"\(\?<{logical_capture_group_name}>", f"(?<{physical_capture_group_name}>", regex
             )
 
         # Generate hidden name if needed
@@ -144,14 +147,13 @@ class SchemaCompiler:
         Raises:
             AttributeError: If variable name already exists
             ValueError: If variable name contains delimiter characters
+
         """
         if name in self.var_names:
             raise AttributeError(_VARIABLE_EXISTS_ERROR.format(name=name))
         if any(char in name for char in self.decoded_delimiters):
             raise ValueError(
-                _VARIABLE_DELIMITER_CONFLICT_ERROR.format(
-                    name=name, delimiters=self.delimiters
-                )
+                _VARIABLE_DELIMITER_CONFLICT_ERROR.format(name=name, delimiters=self.delimiters)
             )
 
     def remove_var(self, var_name: str) -> "SchemaCompiler":
@@ -163,6 +165,7 @@ class SchemaCompiler:
 
         Returns:
             Self for method chaining
+
         """
         # Resolve hidden name if applicable
         actual_name = self.var_hidden_names.get(var_name, var_name)
@@ -181,11 +184,12 @@ class SchemaCompiler:
 
         Returns:
             The Variable object
+
         """
         return self.var_names[var_name]
 
     def compile(self) -> str:
-        """
+        r"""
         Compile the final schema string.
 
         Returns:
@@ -195,6 +199,7 @@ class SchemaCompiler:
             >>> compiler = SchemaCompiler()
             >>> compiler.add_var("MyVar", r"pattern (?<field>\\w+)")
             >>> schema = compiler.compile()
+
         """
         schema_sections = [f"// schema delimiters\ndelimiters:{self.delimiters}"]
 
