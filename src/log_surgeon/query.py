@@ -1,12 +1,13 @@
 import io
-from typing import TYPE_CHECKING, TextIO, BinaryIO, Callable, Generator
+from collections.abc import Generator
+from typing import BinaryIO, Callable, TextIO, TYPE_CHECKING
 
-from log_surgeon.parser import Parser
 from log_surgeon.log_event import LogEvent
+from log_surgeon.parser import Parser
 
 if TYPE_CHECKING:
-    import pandas as pd
-    import pyarrow as pa
+    import pandas as pd  # type: ignore[import-untyped]
+    import pyarrow as pa  # type: ignore[import-untyped]
 
 try:
     import pandas as pd
@@ -19,18 +20,14 @@ except ImportError:
     pa = None
 
 _DATAFRAME_IMPORT_ERROR = (
-    "pandas is required for this operation. "
-    "Install it with: pip install pandas"
+    "pandas is required for this operation. Install it with: pip install pandas"
 )
 
-_ARROW_IMPORT_ERROR = (
-    "pyarrow is required for this operation. "
-    "Install it with: pip install pyarrow"
-)
+_ARROW_IMPORT_ERROR = "pyarrow is required for this operation. Install it with: pip install pyarrow"
 
 
 class Query:
-    """
+    r"""
     Query builder for parsing log events into structured data formats.
 
     The Query class provides a fluent interface for extracting structured data
@@ -42,6 +39,7 @@ class Query:
         >>> parser.compile()
         >>> query = Query(parser).select(["value"]).from_stream(stream)
         >>> df = query.to_dataframe()
+
     """
 
     def __init__(self, parser: Parser) -> None:
@@ -50,6 +48,7 @@ class Query:
 
         Args:
             parser: Configured Parser instance for log parsing
+
         """
         self.fields: list[str] | None = None
         self.stream: io.StringIO | io.BytesIO | None = None
@@ -69,18 +68,19 @@ class Query:
 
         Example:
             >>> # Filter by field value
-            >>> query.filter(lambda event: int(event['value']) > 50)
+            >>> query.filter(lambda event: int(event["value"]) > 50)
             >>>
             >>> # Filter by multiple conditions
-            >>> query.filter(lambda event: event['level'] == 'ERROR' and 'exception' in event.get_log_message())
+            >>> query.filter(lambda event: event["level"] == "ERROR" and "exception" in event.get_log_message())
             >>>
             >>> # Filter with try/catch for missing fields
             >>> def has_high_cpu(event):
             ...     try:
-            ...         return int(event['cpu_usage']) > 80
+            ...         return int(event["cpu_usage"]) > 80
             ...     except (KeyError, ValueError):
             ...         return False
             >>> query.filter(has_high_cpu)
+
         """
         self.predicate = predicate
         return self
@@ -111,6 +111,7 @@ class Query:
             >>>
             >>> # Expand all variables and include metadata
             >>> query.select(["@log_type", "@log_message", "*"])
+
         """
         if "*" in fields:
             fields = list(self.parser.get_vars())
@@ -132,6 +133,7 @@ class Query:
 
         Returns:
             Self for method chaining
+
         """
         return self.from_(input)
 
@@ -159,8 +161,10 @@ class Query:
             >>> # Or from file
             >>> with open("logs.txt", "r") as f:
             ...     query.from_(f)
+
         """
         # Validate and convert input type
+        input_stream: io.StringIO | io.BytesIO
         if isinstance(input, str):
             input_stream = io.StringIO(input)
         elif isinstance(input, (io.StringIO, io.BytesIO)):
@@ -173,9 +177,7 @@ class Query:
             elif isinstance(content, str):
                 input_stream = io.StringIO(content)
             else:
-                raise TypeError(
-                    f"File object returned unsupported type {type(content).__name__}"
-                )
+                raise TypeError(f"File object returned unsupported type {type(content).__name__}")
         else:
             raise TypeError(
                 f"Input must be str, file object, io.StringIO, or io.BytesIO, "
@@ -194,9 +196,10 @@ class Query:
 
         Returns:
             Self for method chaining
+
         """
-        self.stream = stream
-        return self
+        # Delegate to from_() for proper type conversion
+        return self.from_(stream)
 
     def validate_query(self) -> "Query":
         """
@@ -207,11 +210,14 @@ class Query:
 
         Raises:
             AttributeError: If fields or stream are not set
+
         """
         if self.fields is None:
             raise AttributeError("Query is missing fields")
         if not self.fields:
-            raise AttributeError("Selected fields must be at least one variable, use \"*\" if unknown")
+            raise AttributeError(
+                'Selected fields must be at least one variable, use "*" if unknown'
+            )
         if self.stream is None:
             raise AttributeError("Query is empty")
         return self
@@ -222,6 +228,7 @@ class Query:
 
         Returns:
             pandas DataFrame with extracted fields
+
         """
         return self.to_dataframe()
 
@@ -234,6 +241,7 @@ class Query:
 
         Raises:
             ImportError: If pandas is not installed
+
         """
         if pd is None:
             raise ImportError(_DATAFRAME_IMPORT_ERROR)
@@ -247,6 +255,7 @@ class Query:
 
         Returns:
             PyArrow Table with extracted fields
+
         """
         return self.to_arrow()
 
@@ -259,34 +268,43 @@ class Query:
 
         Raises:
             ImportError: If pyarrow is not installed
+
         """
         if pa is None:
             raise ImportError(_ARROW_IMPORT_ERROR)
 
         rows = self.get_rows()
+        assert self.fields is not None
         # Transpose rows for column-oriented storage
         columns = [[row[i] for row in rows] for i in range(len(self.fields))]
         return pa.Table.from_arrays([pa.array(col) for col in columns], names=self.fields)
 
-    def get_rows(self) -> list[list]:
+    def get_rows(self) -> list[list[str]]:
         """
         Extract rows of field values from parsed events.
 
         Returns:
             List of rows, where each row is a list of field values
+
         """
-        rows = []
+        rows: list[list[str]] = []
+        assert self.stream is not None
+        assert self.fields is not None
         for event in self.parser.parse(self.stream):
             # Apply filter predicate if set
             if self.predicate is not None and not self.predicate(event):
                 continue
 
-            rows.append([
-                event.get_log_type() if field == "@log_type"
-                else event.get_log_message() if field == "@log_message"
-                else event.get_capture_group_str_representation(field)
-                for field in self.fields
-            ])
+            rows.append(
+                [
+                    event.get_log_type()
+                    if field == "@log_type"
+                    else event.get_log_message()
+                    if field == "@log_message"
+                    else event.get_capture_group_str_representation(field)
+                    for field in self.fields
+                ]
+            )
         return rows
 
     def get_log_types(self) -> Generator[str, None, None]:
@@ -304,7 +322,9 @@ class Query:
             ...     print(log_type)
             <timestamp> INFO: Processing <metric>
             <timestamp> WARN: Error in <component>
+
         """
+        assert self.stream is not None
         seen_log_types: set[str] = set()
         for event in self.parser.parse(self.stream):
             log_type = event.get_log_type()
@@ -326,7 +346,9 @@ class Query:
             ...     print(f"{count:5d} {log_type}")
                 42 <timestamp> INFO: Processing <metric>
                  7 <timestamp> WARN: Error in <component>
+
         """
+        assert self.stream is not None
         log_type_counts: dict[str, int] = {}
         for event in self.parser.parse(self.stream):
             log_type = event.get_log_type()
@@ -357,7 +379,9 @@ class Query:
             Log Type: <timestamp> INFO: Processing <metric>
               - 2024-01-01 INFO: Processing value=42
               - 2024-01-01 INFO: Processing value=100
+
         """
+        assert self.stream is not None
         log_type_samples: dict[str, list[str]] = {}
         for event in self.parser.parse(self.stream):
             log_type = event.get_log_type()
@@ -376,7 +400,7 @@ if __name__ == "__main__":
     parser = Parser()
     parser.add_var(
         "memoryStore",
-        r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
+        r"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB",
     )
     parser.compile()
 
