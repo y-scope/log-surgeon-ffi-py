@@ -73,30 +73,115 @@ Parsed Logs: {
 ### Multiple Capture Groups
 
 ```python
-from log_surgeon import Parser
+from log_surgeon import Parser, PATTERN
 
+# Parse a sample log event
+log_line = """16/05/04 12:22:37 WARN server.TransportChannelHandler: Exception in connection from spark-35/192.168.10.50:55392
+java.io.IOException: Connection reset by peer
+        at sun.nio.ch.FileDispatcherImpl.read0(Native Method)
+        at sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:39)
+        at sun.nio.ch.IOUtil.readIntoNativeBuffer(IOUtil.java:223)
+        at sun.nio.ch.IOUtil.read(IOUtil.java:192)
+        at sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:380)
+        at io.netty.buffer.PooledUnsafeDirectByteBuf.setBytes(PooledUnsafeDirectByteBuf.java:313)
+        at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:881)
+        at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:242)
+        at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:119)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
+        at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
+        at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:111)
+        at java.lang.Thread.run(Thread.java:750)
+"""
+
+# Create a parser and define extraction patterns
 parser = Parser()
 
-# Extract platform information (level, thread, component)
-parser.add_var(
-  "platform",
-  rf"(?<platform_level>(INFO)|(WARN)|(ERROR)) \[(?<platform_thread>.+)\] (?<platform_component>.+):"
-)
+# Add timestamp pattern
+parser.add_timestamp("TIMESTAMP_SPARK_1_6", rf"\d{{2}}/\d{{2}}/\d{{2}} \d{{2}}:\d{{2}}:\d{{2}}")
 
-# Extract application-specific metrics
+# Add variable patterns
+parser.add_var("SYSTEM_LEVEL", rf"(?<level>(INFO)|(WARN)|(ERROR))")
 parser.add_var(
-  "memoryStore",
-  rf"MemoryStore started with capacity (?<memory_store_capacity_GiB>\d+\.\d+) GiB"
+  "SYSTEM_EXCEPTION",
+  rf"(?<system_exception_type>({PATTERN.JAVA_PACKAGE_SEGMENT})+[{PATTERN.JAVA_IDENTIFIER_CHARSET}]*Exception): "
+  rf"(?<system_exception_msg>{PATTERN.LOG_LINE})"
 )
-
+parser.add_var(
+  rf"SYSTEM_STACK_TRACE",
+  rf"(\s{{1,4}}at (?<system_stack>{PATTERN.JAVA_STACK_LOCATION})"
+)
 parser.compile()
 
-event = parser.parse_event(" INFO [main] MemoryStore: MemoryStore started with capacity 7.0 GiB\n")
+# Parse a single event
+event = parser.parse_event(log_line)
 
-print(f"Level: {event['platform_level']}")
-print(f"Thread: {event['platform_thread']}")
-print(f"Component: {event['platform_component']}")
-print(f"Capacity: {event['memory_store_capacity_GiB']}")
+# Access extracted data
+print(f"Message: {event.get_log_message().strip()}")
+print(f"LogType: {event.get_log_type().strip()}")
+print(f"Parsed Logs: {event}")
+```
+
+**Output:**
+```
+Message: 16/05/04 12:22:37 WARN server.TransportChannelHandler: Exception in connection from spark-35/192.168.10.50:55392
+java.io.IOException: Connection reset by peer
+        at sun.nio.ch.FileDispatcherImpl.read0(Native Method)
+        at sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:39)
+        at sun.nio.ch.IOUtil.readIntoNativeBuffer(IOUtil.java:223)
+        at sun.nio.ch.IOUtil.read(IOUtil.java:192)
+        at sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:380)
+        at io.netty.buffer.PooledUnsafeDirectByteBuf.setBytes(PooledUnsafeDirectByteBuf.java:313)
+        at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:881)
+        at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:242)
+        at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:119)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
+        at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
+        at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
+        at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:111)
+        at java.lang.Thread.run(Thread.java:750)
+LogType: <timestamp> <level> server.TransportChannelHandler: Exception in connection from spark-35/192.168.10.50:55392
+<system_exception_type>: <system_exception_msg>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+        at <system_stack>
+Parsed Logs: {
+  "timestamp": "16/05/04 12:22:37",
+  "level": "WARN",
+  "system_exception_type": "java.io.IOException",
+  "system_exception_msg": "Connection reset by peer",
+  "system_stack": [
+    "sun.nio.ch.FileDispatcherImpl.read0(Native Method)",
+    "sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:39)",
+    "sun.nio.ch.IOUtil.readIntoNativeBuffer(IOUtil.java:223)",
+    "sun.nio.ch.IOUtil.read(IOUtil.java:192)",
+    "sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:380)",
+    "io.netty.buffer.PooledUnsafeDirectByteBuf.setBytes(PooledUnsafeDirectByteBuf.java:313)",
+    "io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:881)",
+    "io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:242)",
+    "io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:119)",
+    "io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)",
+    "io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)",
+    "io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)",
+    "io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)",
+    "io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:111)",
+    "java.lang.Thread.run(Thread.java:750)"
+  ]
+}
 ```
 
 ### Stream Parsing
