@@ -29,6 +29,7 @@ pip install log-surgeon-ffi
 >
 > Critical differences:
 > - **Strongly recommended: use raw f-strings (`rf"..."`)** for regex patterns to avoid escaping issues
+> - Forward slashes `/` must be escaped as `\/` (e.g., for paths like `/abc/def`)
 > - `.*` only matches within a single token (not across delimiters)
 > - `abc|def` requires grouping: use `(abc)|(def)` instead
 > - Use `{0,1}` for optional patterns, NOT `?`
@@ -730,7 +731,7 @@ parser.add_var("metric", "value=(\\d+)")  # Hard to read, error-prone
 parser.add_var("metric", rf"value=(?<value>\d+)")
 ```
 
-#### Watch Out for Braces
+#### Watch Out for Braces in F-Strings
 
 When using f-strings, literal `{` and `}` characters must be escaped by doubling them:
 
@@ -773,9 +774,36 @@ parser.add_var("level", rf"(?<level>{log_level})")  # Easy to compose
 - Avoids double-escaping mistakes that break patterns
 - Makes patterns more readable
 - Allows easy use of Pattern constants and variables
-- Only requires watching for literal `{` and `}` characters (escape as `{{` and `}}`)
+- Only requires watching for literal braces `{` and `}` in f-strings (escape as `{{` and `}}`)
 
 Using regular strings (`"..."`) will require double-escaping (e.g., `"\\d+"`) which is error-prone and hard to read.
+
+### Forward Slash Escaping
+
+**CRITICAL:** In log-surgeon, forward slashes `/` **must always be escaped** as `\/`. This is a log-surgeon-specific requirement.
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()
+
+# ✅ Correct: Escape forward slashes
+parser.add_var("path", rf"(?<path>\/[a-z]+\/[a-z]+)")  # Matches: /abc/def
+parser.add_var("url", rf"(?<url>https:\/\/[a-z.]+)")   # Matches: https://example.com
+
+# ❌ Wrong: Unescaped forward slashes
+parser.add_var("wrong", rf"(?<path>/[a-z]+/[a-z]+)")   # Will not work correctly
+
+parser.compile()
+```
+
+**In traditional regex engines** (Python `re`, PCRE, etc.), `/` does not need escaping (except in JavaScript regex literals).
+**In log-surgeon**, `/` **must always be escaped** as `\/` due to log-surgeon's internal design.
+
+This is especially important when matching:
+- File paths: `/var/log/app.log` → `\/var\/log\/app\.log`
+- URLs: `https://example.com/api` → `https:\/\/example\.com\/api`
+- Date formats: `2024/01/15` → `2024\/01\/15`
 
 ### Logical vs Physical Names
 
