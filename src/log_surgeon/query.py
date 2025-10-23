@@ -314,6 +314,7 @@ class Query:
         Get all unique log types from the parsed events.
 
         Yields log types in the order they are first encountered.
+        If a filter predicate is set, only events matching the filter are included.
 
         Yields:
             Unique log type strings (templates) from parsed events
@@ -329,6 +330,10 @@ class Query:
         assert self.stream is not None
         seen_log_types: set[str] = set()
         for event in self.parser.parse(self.stream):
+            # Apply filter predicate if set
+            if self.predicate is not None and not self.predicate(event):
+                continue
+
             log_type = event.get_log_type()
             if log_type not in seen_log_types:
                 seen_log_types.add(log_type)
@@ -337,6 +342,8 @@ class Query:
     def get_log_type_counts(self) -> dict[str, int]:
         """
         Get count of occurrences for each unique log type.
+
+        If a filter predicate is set, only events matching the filter are counted.
 
         Returns:
             Dictionary mapping log types to their occurrence counts
@@ -353,6 +360,10 @@ class Query:
         assert self.stream is not None
         log_type_counts: dict[str, int] = {}
         for event in self.parser.parse(self.stream):
+            # Apply filter predicate if set
+            if self.predicate is not None and not self.predicate(event):
+                continue
+
             log_type = event.get_log_type()
             log_type_counts[log_type] = log_type_counts.get(log_type, 0) + 1
         return log_type_counts
@@ -363,6 +374,7 @@ class Query:
 
         Collects up to `sample_size` example messages for each log type encountered.
         Useful for understanding what actual log messages match each template.
+        If a filter predicate is set, only events matching the filter are sampled.
 
         Args:
             sample_size: Maximum number of sample messages to collect per log type.
@@ -386,6 +398,10 @@ class Query:
         assert self.stream is not None
         log_type_samples: dict[str, list[str]] = {}
         for event in self.parser.parse(self.stream):
+            # Apply filter predicate if set
+            if self.predicate is not None and not self.predicate(event):
+                continue
+
             log_type = event.get_log_type()
 
             # Initialize list for new log types or append if under sample size
