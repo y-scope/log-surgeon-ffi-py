@@ -66,7 +66,7 @@ class LogEvent:
         log_type_value = self._var_dict.get("@LogType")
         if not isinstance(log_type_value, str):
             msg = "LogType not found or invalid in LogEvent"
-            raise RuntimeError(msg)
+            raise TypeError(msg)
 
         resolved_logtype = re.sub(
             r"<(CGPrefix\d+)>",
