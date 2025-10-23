@@ -460,6 +460,69 @@ parser.add_var("metric", r"metric=(?<metric_name>\w+) value=(?<value>\d+)")
 
 The syntax `(?<name>pattern)` creates a capture group that can be accessed as `event['name']`.
 
+### Using Raw F-Strings for Regex Patterns
+
+**Best Practice:** Use raw f-strings (`rf"..."`) when specifying regex patterns to avoid escaping issues.
+
+Raw f-strings combine the benefits of:
+- **Raw strings (`r"..."`)**: No need to double-escape regex special characters like `\d`, `\w`, `\n`
+- **F-strings (`f"..."`)**: Easy interpolation of variables and pattern constants
+
+#### Why Use Raw F-Strings?
+
+```python
+# ❌ Without raw strings - requires double-escaping
+parser.add_var("metric", "value=(\\d+)")  # Hard to read, error-prone
+
+# ✅ With raw f-strings - single escaping, clean and readable
+parser.add_var("metric", rf"value=(?<value>\d+)")
+```
+
+#### Watch Out for Braces
+
+When using f-strings, literal `{` and `}` characters must be escaped by doubling them:
+
+```python
+from log_surgeon import Parser, Pattern
+
+parser = Parser()
+
+# ✅ Correct: Escape literal braces in regex
+parser.add_var("json", rf"data={{(?<content>[^}}]+)}}")  # Matches: data={...}
+parser.add_var("range", rf"range={{(?<min>\d+),(?<max>\d+)}}")  # Matches: range={10,20}
+
+# ✅ Using Pattern constants with interpolation
+parser.add_var("ip", rf"IP: (?<ip>{Pattern.IPV4})")
+parser.add_var("float", rf"value=(?<val>{Pattern.FLOAT})")
+
+# ✅ Common regex patterns
+parser.add_var("digits", rf"\d+ items")  # No double-escaping needed
+parser.add_var("word", rf"name=(?<name>\w+)")
+parser.add_var("whitespace", rf"split\s+by\s+spaces")
+
+parser.compile()
+```
+
+#### Examples: Raw F-Strings vs Regular Strings
+
+```python
+# Regular string - requires double-escaping
+parser.add_var("path", "path=(?<path>\\w+/\\w+)")  # Hard to read
+
+# Raw f-string - natural regex syntax
+parser.add_var("path", rf"path=(?<path>\w+/\w+)")  # Clean and readable
+
+# With interpolation
+log_level = "INFO|WARN|ERROR"
+parser.add_var("level", rf"(?<level>{log_level})")  # Easy to compose
+```
+
+**Recommendation:** Consistently use `rf"..."` for all regex patterns. This approach:
+- Avoids double-escaping mistakes
+- Makes patterns more readable
+- Allows easy use of Pattern constants and variables
+- Only requires watching for literal `{` and `}` characters (escape as `{{` and `}}`)
+
 ### Logical vs Physical Names
 
 Internally, log-surgeon uses "physical" names (e.g., `CGPrefix0`, `CGPrefix1`) for capture groups, while you work with "logical" names (e.g., `user_id`, `thread`). The `GroupNameResolver` handles this mapping automatically.
