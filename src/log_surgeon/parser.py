@@ -155,13 +155,13 @@ class Parser:
         return None
 
     def parse(
-        self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO
+        self, source: str | TextIO | BinaryIO | io.StringIO | io.BytesIO
     ) -> Generator[LogEvent, None, None]:
         r"""
         Parse all log events from an input stream, file object, or string.
 
         Args:
-            input: Input data to parse. Can be:
+            source: Input data to parse. Can be:
                 - str: Plain string containing log data
                 - TextIO: Text file object (opened in text mode)
                 - BinaryIO: Binary file object (opened in binary mode)
@@ -173,7 +173,7 @@ class Parser:
 
         Raises:
             RuntimeError: If parser is not initialized with a schema
-            TypeError: If input type is not supported
+            TypeError: If source type is not supported
 
         Example:
             >>> parser = Parser()
@@ -192,15 +192,15 @@ class Parser:
         """
         self._ensure_initialized()
 
-        # Validate and convert input type
+        # Validate and convert source type
         input_stream: io.StringIO | io.BytesIO
-        if isinstance(input, str):
-            input_stream = io.StringIO(input)
-        elif isinstance(input, (io.StringIO, io.BytesIO)):
-            input_stream = input
-        elif hasattr(input, "read"):
+        if isinstance(source, str):
+            input_stream = io.StringIO(source)
+        elif isinstance(source, (io.StringIO, io.BytesIO)):
+            input_stream = source
+        elif hasattr(source, "read"):
             # Handle file objects (TextIO or BinaryIO)
-            content = input.read()
+            content = source.read()
             if isinstance(content, bytes):
                 input_stream = io.BytesIO(content)
             elif isinstance(content, str):
@@ -211,7 +211,7 @@ class Parser:
         else:
             msg = (
                 f"Input must be str, file object, io.StringIO, or io.BytesIO, "
-                f"got {type(input).__name__}"
+                f"got {type(source).__name__}"
             )
             raise TypeError(msg)
 

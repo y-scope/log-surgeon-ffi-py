@@ -123,12 +123,12 @@ class Query:
         self.fields = fields
         return self
 
-    def select_from(self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query:
+    def select_from(self, source: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query:
         """
         Alias for from_().
 
         Args:
-            input: Input data to parse. Can be:
+            source: Input data to parse. Can be:
                 - str: Plain string containing log data
                 - TextIO: Text file object (opened in text mode)
                 - BinaryIO: Binary file object (opened in binary mode)
@@ -139,14 +139,14 @@ class Query:
             Self for method chaining
 
         """
-        return self.from_(input)
+        return self.from_(source)
 
-    def from_(self, input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query:
+    def from_(self, source: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Query:
         """
         Set the input source to parse.
 
         Args:
-            input: Input data to parse. Can be:
+            source: Input data to parse. Can be:
                 - str: Plain string containing log data
                 - TextIO: Text file object (opened in text mode)
                 - BinaryIO: Binary file object (opened in binary mode)
@@ -157,7 +157,7 @@ class Query:
             Self for method chaining
 
         Raises:
-            TypeError: If input type is not supported
+            TypeError: If source type is not supported
 
         Example:
             >>> query = Query(parser).select(["value"])
@@ -167,15 +167,15 @@ class Query:
             ...     query.from_(f)
 
         """
-        # Validate and convert input type
+        # Validate and convert source type
         input_stream: io.StringIO | io.BytesIO
-        if isinstance(input, str):
-            input_stream = io.StringIO(input)
-        elif isinstance(input, (io.StringIO, io.BytesIO)):
-            input_stream = input
-        elif hasattr(input, "read"):
+        if isinstance(source, str):
+            input_stream = io.StringIO(source)
+        elif isinstance(source, (io.StringIO, io.BytesIO)):
+            input_stream = source
+        elif hasattr(source, "read"):
             # Handle file objects (TextIO or BinaryIO)
-            content = input.read()
+            content = source.read()
             if isinstance(content, bytes):
                 input_stream = io.BytesIO(content)
             elif isinstance(content, str):
@@ -186,7 +186,7 @@ class Query:
         else:
             msg = (
                 f"Input must be str, file object, io.StringIO, or io.BytesIO, "
-                f"got {type(input).__name__}"
+                f"got {type(source).__name__}"
             )
             raise TypeError(msg)
 
