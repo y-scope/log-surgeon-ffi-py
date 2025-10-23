@@ -38,10 +38,11 @@ pip install log-surgeon-ffi
 > **You MUST read the [Key Concepts](#key-concepts) section and understand it fully before writing patterns, or you will encounter unexpected behavior and pain.**
 >
 > Critical differences:
-> - **Strongly recommended: use raw f-strings (`rf"..."`)** for regex patterns to avoid escaping issues
 > - `.*` only matches within a single token (not across delimiters)
 > - `abc|def` requires grouping: use `(abc)|(def)` instead
 > - Use `{0,1}` for optional patterns, NOT `?`
+>
+> **Tip:** Use raw f-strings (`rf"..."`) for regex patterns—see [Using Raw F-Strings](#using-raw-f-strings-for-regex-patterns) for details.
 >
 > **[→ Read Key Concepts Now](#key-concepts)**
 
