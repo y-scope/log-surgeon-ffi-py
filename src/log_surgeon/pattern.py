@@ -14,6 +14,7 @@ class PATTERN:
         >>> parser.add_var("ip", rf"IP: (?<ip>{PATTERN.IPV4})")
         >>> parser.add_var("port", rf"port (?<port>{PATTERN.PORT})")
         >>> parser.compile()
+
     """
 
     # ============================================================================
