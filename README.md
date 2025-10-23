@@ -6,6 +6,14 @@ Python FFI bindings for [log-surgeon](https://github.com/y-scope/log-surgeon), a
 
 log-surgeon-ffi provides a Pythonic interface to the log-surgeon C++ library, enabling efficient extraction of structured information from unstructured log files.
 
+## Quick Navigation
+
+**Getting Started**: [Installation](#installation) • [Getting Started](#getting-started) • [Quick Start](#quick-start) • [Examples](examples/)
+
+**Core Concepts**: [Token-Based Parsing](#token-based-parsing-and-delimiters) • [Named Captures](#named-capture-groups) • [Raw F-Strings](#using-raw-f-strings-for-regex-patterns)
+
+**Reference**: [Parser API](#parser) • [Query API](#query) • [Pattern Constants](#pattern)
+
 ### Why Log Surgeon?
 
 Traditional regex engines are brittle—slow to execute, prone to errors, and they demand complex pattern maintenance. For instance, Meta uses RE2 (a state-of-the-art regex engine) to parse their logs but they face scalability and maintenance challenges; as a result they can only afford to extract limited patterns (timestamp, log level, and component name).
@@ -21,17 +29,45 @@ Log Surgeon is built to accommodate structural variability: values may shift pos
 - **Parse streams** efficiently for large-scale log processing
 - **Export data** to pandas DataFrames and PyArrow Tables
 
+## When to Use log-surgeon
+
+✅ **Good fit:**
+- Large-scale log processing (millions of lines)
+- Extracting structured data from semi-structured logs
+- Generating log templates for analytics
+- Multi-line log events (stack traces, JSON dumps)
+- Performance-critical parsing
+
+❌ **Not ideal for:**
+- Simple one-off text extraction (use Python `re` module)
+- Highly irregular text without consistent delimiters
+- Patterns requiring full PCRE features (lookahead, backreferences)
+
 ## Installation
 
 ```bash
 pip install log-surgeon-ffi
 ```
 
+**Verify installation:**
+```bash
+python -c "from log_surgeon import Parser; print('✓ Installation successful')"
+```
+
 **Note:** pandas and pyarrow are included as dependencies for DataFrame/Arrow support.
+
+## Getting Started
+
+After installation, follow these steps:
+
+1. ✅ **Read [Key Concepts](#key-concepts)** - Critical to understand token-based parsing
+2. ✅ **Run a [Quick Start example](#quick-start)** - See it working
+3. ✅ **Use `rf"..."` for patterns** - Avoid escaping issues (see [Using Raw F-Strings](#using-raw-f-strings-for-regex-patterns))
+4. ✅ **Check [examples/](examples/)** - More complete working examples
 
 ---
 
-> **⚠️ IMPORTANT: READ BEFORE USING**
+> **🚨 STOP: Different from traditional regex - Read this first or your patterns won't work**
 >
 > **log-surgeon uses token-based parsing and has different regex behavior than traditional engines.**
 >
@@ -85,6 +121,31 @@ The parser extracted structured data from the unstructured log line:
 - **Message**: The original log line
 - **LogType**: Template with variable placeholder `<memory_gb>` showing the pattern structure
 - **Parsed variables**: Successfully extracted `memory_gb` value of "4.0" from the pattern match
+
+### Try It Yourself
+
+Copy this code and modify the pattern to extract both `memory_gb` AND `cores`:
+
+```python
+from log_surgeon import Parser, PATTERN
+
+log_line = "16/05/04 04:24:58 INFO Registering worker with 1 core and 4.0 GiB ram\n"
+parser = Parser()
+# TODO: Add pattern to capture both "1" (cores) and "4.0" (memory_gb)
+parser.add_var("resource", rf"...")
+parser.compile()
+
+event = parser.parse_event(log_line)
+print(f"Cores: {event['cores']}, Memory: {event['memory_gb']}")
+```
+
+<details>
+<summary>Solution</summary>
+
+```python
+parser.add_var("resource", rf"(?<cores>\d+) core and (?<memory_gb>{PATTERN.FLOAT}) GiB ram")
+```
+</details>
 
 ### Multiple Capture Groups
 
@@ -445,6 +506,19 @@ Log type samples:
   <timestamp> ERROR: System <status>
     - 2024-01-01 ERROR: System status=failed
 ```
+
+## Quick Reference
+
+| Task | Syntax |
+|------|--------|
+| Named capture | `(?<name>pattern)` |
+| Alternation | `(?<name>(opt1)|(opt2))` (NOT `opt1|opt2`) |
+| Optional | `{0,1}` (NOT `?` or `*`) |
+| Match across tokens | Use `[a-z ]*` (NOT `.*`) |
+| Pattern string | `rf"..."` (raw f-string recommended) |
+| All variables | `.select(["*"])` |
+| Log type | `.select(["@log_type"])` |
+| Original message | `.select(["@log_message"])` |
 
 ## API Reference
 
@@ -929,6 +1003,33 @@ variable_name:<variable_regex>
 ```
 
 When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schema is built automatically.
+
+## Common Pitfalls
+
+❌ **Pattern doesn't match anything**
+- Check: Are you using `.*` to match across tokens? Use `[a-zA-Z ]*` instead
+- Check: Did you forget to call `parser.compile()`?
+- Check: Are your delimiters splitting tokens unexpectedly?
+
+❌ **Alternation not working (abc|def)**
+- Problem: `(?<name>abc|def)` doesn't match "abc" or "def" as expected
+- Solution: Use `(?<name>(abc)|(def))` with explicit grouping
+
+❌ **Pattern works in regex tester but not here**
+- Remember: log-surgeon is token-based, not character-based
+- Traditional regex engines match across entire strings
+- log-surgeon matches within token boundaries (delimited by spaces, colons, etc.)
+- Read: [Token-Based Parsing](#token-based-parsing-and-delimiters)
+
+❌ **Escape sequence errors in Python**
+- Problem: `parser.add_var("digits", "(?<num>\d+)")` raises SyntaxError
+- Solution: Use `rf"..."` (raw f-string) instead of `"..."` or `f"..."`
+- Example: `parser.add_var("digits", rf"(?<num>\d+)")`
+
+❌ **Optional pattern matching incorrectly**
+- Problem: Using `?` or `*` for optional patterns
+- Solution: Use `{0,1}` for optional elements
+- Example: `(?<level>(ERROR)|(WARN)){0,1}` for optional log level
 
 ## Development
 
