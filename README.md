@@ -181,6 +181,40 @@ print(df)
 # 1         cpu     85
 ```
 
+### Including Log Metadata
+
+Use special fields `@log_type` and `@log_message` to include log metadata alongside extracted variables:
+
+```python
+from log_surgeon import Parser, Query
+
+parser = Parser()
+parser.add_var("metric", r"value=(?<value>\d+)")
+parser.compile()
+
+log_data = """
+2024-01-01 INFO: Processing value=42
+2024-01-01 WARN: Processing value=100
+"""
+
+# Select log type, message, and all variables
+query = (
+  Query(parser)
+  .select(["@log_type", "@log_message", "*"])
+  .from_(log_data)
+  .validate_query()
+)
+
+df = query.to_dataframe()
+print(df)
+# Output:
+#                          @log_type                         @log_message value
+# 0  <timestamp> INFO: Processing <metric>  2024-01-01 INFO: Processing value=42    42
+# 1  <timestamp> WARN: Processing <metric>  2024-01-01 WARN: Processing value=100  100
+```
+
+The `"*"` wildcard expands to all variables defined in the schema and can be combined with other fields like `@log_type` and `@log_message`.
+
 ## API Reference
 
 ### Parser
@@ -269,7 +303,9 @@ Query builder for parsing log events into structured data formats.
 #### Methods
 
 - `select(fields: list[str]) -> Query`
-  - Select fields to extract (use `["*"]` for all fields)
+  - Select fields to extract from log events
+  - Supports variable names, `"*"` for all variables, `"@log_type"` for log type, and `"@log_message"` for original message
+  - The `"*"` wildcard can be combined with other fields (e.g., `["@log_type", "*"]`)
   - Returns self for method chaining
 
 - `filter(predicate: Callable[[LogEvent], bool]) -> Query`
