@@ -132,7 +132,7 @@ class PATTERN:
     # ============================================================================
 
     JAVA_IDENTIFIER_CHARSET = rf"a-zA-Z0-9_"
-    """
+    r"""
     Character set for Java identifier base characters.
 
     Includes alphanumeric characters and underscores (similar to \w in traditional regex).
@@ -150,7 +150,7 @@ class PATTERN:
     """
 
     LOG_LINE_CHARSET = rf" \ta-zA-Z0-9\.,:;_\-/\\\[\]\(\)\<\>=\+\*!\?@#$%\^&\|~"
-    """
+    r"""
     Character set commonly found in log lines.
 
     Includes:
@@ -174,7 +174,7 @@ class PATTERN:
     """
 
     LOG_LINE_NO_WHITE_SPACE_CHARSET = rf"a-zA-Z0-9\.,:;_\-/\\\[\]\(\)\<\>=\+\*!\?@#$%\^&\|~"
-    """
+    r"""
     Character set commonly found in log lines, excluding whitespace.
 
     Includes:
