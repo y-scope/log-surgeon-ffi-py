@@ -1,3 +1,15 @@
+"""Query builder for extracting and exporting structured log data.
+
+This module provides the Query class, which offers a fluent interface for:
+- Selecting specific fields from parsed log events
+- Filtering events with custom predicates
+- Exporting results to pandas DataFrames or PyArrow Tables
+- Analyzing log types and patterns
+
+The Query class works with Parser instances to transform raw log data into
+structured formats suitable for analysis and data science workflows.
+"""
+
 from __future__ import annotations
 
 import io
