@@ -19,10 +19,11 @@ class LogEvent:
         >>> event = parser.parse_event("INFO [main] Processing value=42")
         >>> event.get_log_message()
         'INFO [main] Processing value=42'
-        >>> event['value']
+        >>> event["value"]
         '42'
         >>> event.get_log_type()
         '<timestamp><platform_level> [<platform_thread>] Processing value=<value>'
+
     """
 
     def __init__(self) -> None:
@@ -37,6 +38,7 @@ class LogEvent:
 
         Returns:
             The raw log message string
+
         """
         return self._log_message
 
@@ -47,8 +49,10 @@ class LogEvent:
         Returns:
             The log type string with placeholders for variable fields,
             prefixed with <timestamp> and with logical group names resolved
+
         """
-        def resolve_physical_group_name(match):
+
+        def resolve_physical_group_name(match: re.Match[str]) -> str:
             physical_group_name = match.group(1)
             logical_group_name = self._group_name_resolver.get_logical_name(physical_group_name)
             return f"<{logical_group_name}>"
@@ -61,9 +65,7 @@ class LogEvent:
         return f"{resolved_logtype}"
 
     def get_capture_group(
-        self,
-        logical_capture_group_name: str,
-        raw_output: bool = False
+        self, logical_capture_group_name: str, raw_output: bool = False
     ) -> str | list[str | int | float] | None:
         """
         Get the value of a capture group by its logical name.
@@ -80,12 +82,13 @@ class LogEvent:
             - Otherwise: list of values
 
         Example:
-            >>> event.get_capture_group('thread', resolver)  # Single value
+            >>> event.get_capture_group("thread", resolver)  # Single value
             'main'
-            >>> event.get_capture_group('thread', resolver, raw_output=True)
+            >>> event.get_capture_group("thread", resolver, raw_output=True)
             ['main']
-            >>> event.get_capture_group('errors', resolver)  # Multiple values
+            >>> event.get_capture_group("errors", resolver)  # Multiple values
             ['error1', 'error2']
+
         """
         # Special case: @LogType returns the resolved log type
         if logical_capture_group_name == "@log_type":
@@ -105,9 +108,7 @@ class LogEvent:
         return None
 
     def get_capture_group_str_representation(
-        self,
-        logical_capture_group_name: str,
-        raw_output: bool = False
+        self, logical_capture_group_name: str, raw_output: bool = False
     ) -> str:
         """
         Get the string representation of a capture group value.
@@ -120,10 +121,11 @@ class LogEvent:
             String representation of the capture group value
 
         Example:
-            >>> event.get_capture_group_str_representation('value')
+            >>> event.get_capture_group_str_representation("value")
             '42'
-            >>> event.get_capture_group_str_representation('values', raw_output=True)
+            >>> event.get_capture_group_str_representation("values", raw_output=True)
             "['1', '2', '3']"
+
         """
         return f"{self.get_capture_group(logical_capture_group_name, raw_output)}"
 
@@ -138,12 +140,16 @@ class LogEvent:
             The captured value(s) for the group
 
         Example:
-            >>> event['thread']
+            >>> event["thread"]
             'main'
-            >>> event['values']
+            >>> event["values"]
             ['1', '2', '3']
+
         """
-        return self.get_capture_group(logical_capture_group_name, raw_output=False)
+        result = self.get_capture_group(logical_capture_group_name, raw_output=False)
+        if result is None:
+            raise KeyError(f"Capture group '{logical_capture_group_name}' not found")
+        return result
 
     def get_resolved_dict(self) -> dict[str, str | list[str | int | float]]:
         """
@@ -168,6 +174,7 @@ class LogEvent:
                 "thread": "main",
                 "value": "42"
             }
+
         """
         resolved_dict = {}
         for key, value in self._var_dict.items():
@@ -202,6 +209,7 @@ class LogEvent:
               "@LogType": "...",
               "field1": "value1"
             }
+
         """
         return json.dumps(self.get_resolved_dict(), indent=2)
 
@@ -211,5 +219,6 @@ class LogEvent:
 
         Returns:
             Compact JSON string of the variable dictionary
+
         """
         return json.dumps(self._var_dict)
