@@ -1,5 +1,7 @@
 """High-level parser for extracting structured data from unstructured log messages."""
 
+from __future__ import annotations
+
 import io
 from collections.abc import Generator, KeysView
 from typing import BinaryIO, TextIO

@@ -1,5 +1,7 @@
 """Log event representation with extracted variables and metadata."""
 
+from __future__ import annotations
+
 import json
 import re
 

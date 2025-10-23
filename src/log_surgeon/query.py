@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 from collections.abc import Generator
 from typing import BinaryIO, Callable, TextIO, TYPE_CHECKING
