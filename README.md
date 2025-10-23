@@ -4,7 +4,17 @@ Python FFI bindings for [log-surgeon](https://github.com/y-scope/log-surgeon), a
 
 ## Overview
 
-log-surgeon-ffi provides a Pythonic interface to the log-surgeon C++ library, enabling efficient extraction of structured information from unstructured log files. It uses schema-based pattern matching to:
+log-surgeon-ffi provides a Pythonic interface to the log-surgeon C++ library, enabling efficient extraction of structured information from unstructured log files.
+
+### Why Log Surgeon?
+
+Traditional regex engines are brittle—slow to execute, prone to errors, and they demand complex pattern maintenance. For instance, Meta uses RE2 (a state-of-the-art regex engine) to parse their logs but they face scalability and maintenance challenges; as a result they can only afford to extract limited patterns (timestamp, log level, and component name).
+
+Log Surgeon streamlines the entire process by (1) identifying, extracting, and labeling variable values with semantic context and (2) inferring a log template, all in a single, efficient pass.
+
+Log Surgeon is built to accommodate structural variability: values may shift position, appear multiple times, or change order entirely. You simply define the variable patterns, optionally enriched with surrounding text or sequence of variables. Log Surgeon then JIT-compiles a tagged-DFA state machine to drive the full pipeline.
+
+### Key Capabilities
 
 - **Extract variables** from log messages using regex patterns with named capture groups
 - **Generate log types** (templates) automatically for log analysis
