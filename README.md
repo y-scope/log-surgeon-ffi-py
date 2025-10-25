@@ -8,7 +8,7 @@
 ## Quick navigation
 
 [**Overview**](#overview)
-* [Why `log-surgeon`](#why-log-surgeon)
+* [Why `log-surgeon`?](#why-log-surgeon)
 * [Key capabilities](#key-capabilities)
 * [Structured output and downstream capabilities](#structured-output-and-downstream-capabilities)
 * [When to use `log-surgeon`](#when-to-use-log-surgeon)
@@ -25,7 +25,7 @@
 * [Named capture groups](#named-capture-groups)
 * [Using raw f-strings for regex patterns](#using-raw-f-strings-for-regex-patterns)
 
-* [**Reference**](#reference)
+[**Reference**](#reference)
 * [Parser API](#parser)
 * [Query API](#query)
 * [PATTERN constants](#pattern)
