@@ -1,112 +1,182 @@
-# log-surgeon-ffi
+# `log-surgeon-ffi`
 
-Python FFI bindings for [log-surgeon](https://github.com/y-scope/log-surgeon), a high-performance library for parsing unstructured log messages into structured data.
+`log-surgeon-ffi` provides Python foreign function interface (FFI) bindings for
+[`log-surgeon`](https://github.com/y-scope/log-surgeon).
+
+---
+
+## Quick navigation
+
+[**Overview**](#overview)
+* [Why `log-surgeon`](#why-log-surgeon)
+* [Key capabilities](#key-capabilities)
+* [Structured output and downstream capabilities](#structured-output-and-downstream-capabilities)
+* [When to use `log-surgeon`](#when-to-use-log-surgeon)
+
+[**Getting started**](#getting-started)
+* [System requirements](#system-requirements)
+* [Installation](#installation)
+* [First steps](#first-steps)
+* [Important prerequisites](#important-prerequisites)
+* [Quick start examples](#quick-start-examples)
+
+[**Key concepts**](#key-concepts)
+* [Token-based parsing and delimiters](#token-based-parsing-and-delimiters)
+* [Named capture groups](#named-capture-groups)
+* [Using raw f-strings for regex patterns](#using-raw-f-strings-for-regex-patterns)
+
+* [**Reference**](#reference)
+* [Parser API](#parser)
+* [Query API](#query)
+* [PATTERN constants](#pattern)
+
+[**Development**](#development)
+* [Building from source](#building-from-source)
+* [Running tests](#running-tests)
+
+---
 
 ## Overview
 
-log-surgeon-ffi provides a Pythonic interface to the log-surgeon C++ library, enabling efficient extraction of structured information from unstructured log files.
+[`log-surgeon`](https://github.com/y-scope/log-surgeon), is a high-performance C++ library that
+enables efficient extraction of structured information from unstructured log files.
 
-## Quick Navigation
+### Why `log-surgeon`?
 
-**Getting Started**: [Installation](#installation) • [Getting Started](#getting-started) • [Quick Start](#quick-start) • [Examples](examples/)
+Traditional regex engines are often slow to execute, prone to errors, and costly to maintain. For
+example, Meta uses RE2 (a state-of-the-art regex engine) to parse logs, but they still face
+scalability and maintenance challenges, which limits extraction to a small set of fields such as
+timestamps, levels, and component names.
 
-**Core Concepts**: [Token-Based Parsing](#token-based-parsing-and-delimiters) • [Named Captures](#named-capture-groups) • [Raw F-Strings](#using-raw-f-strings-for-regex-patterns)
+`log-surgeon` streamlines the process by identifying, extracting, and labeling variable values with
+semantic context, and then inferring a log template in a single pass. `log-surgeon` is also built to
+accommodate structural variability. Values may shift position, appear multiple times, or change order
+entirely, but with `log-surgeon`, you simply define the variable patterns, and `log-surgeon`
+JIT-compiles a tagged-DFA state machine to drive the full pipeline.
 
-**Reference**: [Parser API](#parser) • [Query API](#query) • [PATTERN Constants](#pattern)
+### Key capabilities
 
-### Why Log Surgeon?
+* **Extract variables** from log messages using regex patterns with named capture groups
+* **Generate log types** (templates) automatically for log analysis
+* **Parse streams** efficiently for large-scale log processing
+* **Export data** to pandas DataFrames and PyArrow Tables
 
-Traditional regex engines are brittle—slow to execute, prone to errors, and they demand complex pattern maintenance. For instance, Meta uses RE2 (a state-of-the-art regex engine) to parse their logs but they face scalability and maintenance challenges; as a result they can only afford to extract limited patterns (timestamp, log level, and component name).
+### Structured output and downstream capabilities
 
-Log Surgeon streamlines the entire process by (1) identifying, extracting, and labeling variable values with semantic context and (2) inferring a log template, all in a single, efficient pass.
+Unstructured log data is automatically transformed into structured semantic representations.
 
-Log Surgeon is built to accommodate structural variability: values may shift position, appear multiple times, or change order entirely. You simply define the variable patterns, optionally enriched with surrounding text or sequence of variables. Log Surgeon then JIT-compiles a tagged-DFA state machine to drive the full pipeline.
+* **Log types (templates)**: Variables are replaced with placeholders to form reusable templates.
+  For example, roughly 200,000 Spark log messages can reduce to about 55 distinct templates, which
+  supports pattern analysis and anomaly detection.
 
-### Key Capabilities
-
-- **Extract variables** from log messages using regex patterns with named capture groups
-- **Generate log types** (templates) automatically for log analysis
-- **Parse streams** efficiently for large-scale log processing
-- **Export data** to pandas DataFrames and PyArrow Tables
-
-### Structured Output and Downstream Capabilities
-
-Unstructured log data is automatically transformed into structured semantic representations:
-
-- **Log Types (Templates)**: Variables are replaced with placeholders to create reusable templates. For example, ~200,000 Spark log messages can be distilled into just 55 distinct log template types, enabling efficient pattern analysis and anomaly detection.
-
-- **Semantic Variables**: Extracted key-value pairs with semantic context (e.g., `app_id`, `app_name`, `worker_id`) that can be directly used for analysis.
+* **Semantic Variables**: Extracted key-value pairs with semantic context (e.g., `app_id`,
+  `app_name`, `worker_id`) can be used directly for analysis.
 
 This structured output unlocks powerful downstream capabilities:
 
-- **Knowledge Graph Construction**: Build relationship graphs between entities extracted from logs (e.g., linking `app_id` → `app_name` → `worker_id`). The structured output from log-surgeon provides an ideal foundation for tools like [Stitch](https://www.usenix.org/conference/osdi16/technical-sessions/presentation/zhao), which uses flow reconstruction from logs to perform non-intrusive performance profiling and debugging across distributed systems.
+* **Knowledge graph construction.** Build relationship graphs between entities extracted from logs
+  (e.g., linking `app_id` → `app_name` → `worker_id`). The structured output fits tools such as
+  [Stitch](https://www.usenix.org/conference/osdi16/technical-sessions/presentation/zhao), which
+  uses flow reconstruction from logs to perform non-intrusive performance profiling and debugging
+  across distributed systems.
 
-- **Template-Based Summarization**: Compress massive datasets into compact template sets for human and agent consumption. Log templates serve as natural tokens for LLMs, enabling efficient context windows - instead of feeding millions of raw log lines, provide ~50-100 distinct templates with statistics.
+* **Template-based summarization.** Compress massive datasets into compact template sets for human
+  and agent consumption. Templates act as natural tokens for LLMs. Instead of millions of raw lines,
+  provide a small number of distinct templates with statistics.
 
-- **Hybrid Search**: Combine free-text search with structured queries. Log types enable auto-completion and query suggestions on large datasets - instead of searching through millions of raw log lines, search across a compact set of templates first. Then project and filter on structured variables (e.g., `status == "ERROR"`, `response_time > 1000`), and aggregate for analysis - all in one unified workflow.
+* **Hybrid search** Combine free-text search with structured queries. Log types enable
+  auto-completion and query suggestions on large datasets. Instead of searching through millions of
+  raw log lines, search across a compact set of templates first. Then project and filter on
+  structured variables (e.g., `status == "ERROR"`, `response_time > 1000`), and aggregate for
+  analysis.
 
-- **Agentic Automation**: Enable AI agents to understand and act on structured log data. Agents can query by template patterns, analyze variable distributions, identify anomalies, and automate debugging workflows using structured rather than raw text.
+* **Agentic automation.** Agents can query by template, analyze variable distributions, identify
+  anomalies, and automate debugging tasks using structured signals rather than raw text.
 
-## When to Use log-surgeon
+### When to use `log-surgeon`
 
-✅ **Good fit:**
-- Large-scale log processing (millions of lines)
-- Extracting structured data from semi-structured logs
-- Generating log templates for analytics
-- Multi-line log events (stack traces, JSON dumps)
-- Performance-critical parsing
+**Good fit**
+* Large-scale log processing (millions of lines)
+* Extracting structured data from semi-structured logs
+* Generating log templates for analytics
+* Multi-line log events (stack traces, JSON dumps)
+* Performance-critical parsing
 
-❌ **Not ideal for:**
-- Simple one-off text extraction (use Python `re` module)
-- Highly irregular text without consistent delimiters
-- Patterns requiring full PCRE features (lookahead, backreferences)
+**Not ideal**
+* Simple one-off text extraction (use Python `re` module)
+* Highly irregular text without consistent delimiters
+* Patterns requiring full PCRE features (lookahead, backreferences)
 
-## Installation
+---
+
+## Getting started
+
+Follow the instructions below to get started with `log-surgeon-ffi`.
+
+### System requirements
+
+- Python >= 3.9
+- pandas
+- pyarrow
+
+#### Build requirements
+
+- C++20 compatible compiler
+- CMake >= 3.15
+
+### Installation
+
+To install the library with pandas and PyArrow support for DataFrame/Arrow table exports, run the
+following command:
 
 ```bash
 pip install log-surgeon-ffi
 ```
 
-This installs the library with pandas and PyArrow support for DataFrame/Arrow table exports.
+To verify your installation, run the following command:
 
-**Verify installation:**
 ```bash
-python -c "from log_surgeon import Parser; print('✓ Installation successful')"
+python -c "from log_surgeon import Parser; print('Installation successful.')"
 ```
 
-**Optional:** If you only need core parsing functionality without DataFrame/Arrow exports, you can install a minimal version (though pandas and PyArrow are included by default for convenience).
+**Note:** If you only need core parsing without DataFrame or Arrow exports, you can install a
+minimal environment, although pandas and PyArrow are included by default for convenience.
 
-## Getting Started
+### First steps
 
 After installation, follow these steps:
 
-1. ✅ **Read [Key Concepts](#key-concepts)** - Critical to understand token-based parsing
-2. ✅ **Run a [Quick Start example](#quick-start)** - See it working
-3. ✅ **Use `rf"..."` for patterns** - Avoid escaping issues (see [Using Raw F-Strings](#using-raw-f-strings-for-regex-patterns))
-4. ✅ **Check [examples/](examples/)** - More complete working examples
+1. **Read [Key Concepts](#key-concepts).** Token based parsing differs from traditional regex.
+2. **Run a [Quick start example](#quick-start-examples)** to see how it works.
+3. **Use `rf"..."` for patterns** to avoid escaping issues. See
+   [Using Raw f-strings](#using-raw-f-strings-for-regex-patterns).
+4. **Check out [examples/](examples/)** to study some complete working examples.
 
 ---
 
-> **🚨 STOP: Different from traditional regex - Read this first or your patterns won't work**
->
-> **log-surgeon uses token-based parsing and has different regex behavior than traditional engines.**
->
-> **You MUST read the [Key Concepts](#key-concepts) section and understand it fully before writing patterns, or you will encounter unexpected behavior and pain.**
->
-> Critical differences:
-> - `.*` only matches within a single token (not across delimiters)
-> - `abc|def` requires grouping: use `(abc)|(def)` instead
-> - Use `{0,1}` for optional patterns, NOT `?`
->
-> **Tip:** Use raw f-strings (`rf"..."`) for regex patterns—see [Using Raw F-Strings](#using-raw-f-strings-for-regex-patterns) for details.
->
-> **[→ Read Key Concepts Now](#key-concepts)**
+> ### Important prerequisites
+> 
+> `log-surgeon` uses token-based parsing, and its regex behavior differs from traditional engines.
+> Read the [Key Concepts](#key-concepts) section before writing patterns.
+> 
+> Critical differences between token-based parsing and traditional regex behavior:
+> 
+> * `.*` only matches within a single token (not across delimiters)
+> * `abc|def` requires grouping: use `(abc)|(def)` instead
+> * Use `{0,1}` for optional patterns, NOT `?`
+> 
+> **Tip:** Use raw f-strings (`rf"..."`) for regex patterns. See 
+> [Using Raw f-strings](#using-raw-f-strings-for-regex-patterns) for more details.
 
 ---
 
-## Quick Start
+### Quick start examples
 
-### Basic Parsing
+Use the following examples to get started.
+
+#### Basic parsing
+
+The following code parses a simple log event with `log-surgeon`.
 
 ```python
 from log_surgeon import Parser, PATTERN
@@ -137,12 +207,12 @@ Parsed Logs: {
 }
 ```
 
-The parser extracted structured data from the unstructured log line:
-- **Message**: The original log line
-- **LogType**: Template with variable placeholder `<memory_gb>` showing the pattern structure
-- **Parsed variables**: Successfully extracted `memory_gb` value of "4.0" from the pattern match
+We can see that the parser extracted structured data from the unstructured log line:
+* ***Message**: The original log line
+* **LogType**: Template with variable placeholder `<memory_gb>` showing the pattern structure
+* **Parsed variables**: Successfully extracted `memory_gb` value of "4.0" from the pattern match
 
-### Try It Yourself
+#### Try it yourself
 
 Copy this code and modify the pattern to extract both `memory_gb` AND `cores`:
 
@@ -167,7 +237,11 @@ parser.add_var("resource", rf"(?<cores>\d+) core and (?<memory_gb>{PATTERN.FLOAT
 ```
 </details>
 
-### Multiple Capture Groups
+---
+
+#### Multiple capture groups
+
+The following code parses a more-complex log event.
 
 ```python
 from log_surgeon import Parser, PATTERN
@@ -271,13 +345,20 @@ Parsed Logs: {
 ```
 
 The parser extracted **multiple named capture groups** from a complex multi-line Java stack trace:
-- **Scalar fields**: `timestamp`, `level`, `spark_host`, `system_ip`, `system_port`, `system_exception_type`, `system_exception_msg`
-- **Array field**: `system_stack` contains all 15 stack trace locations (demonstrates automatic aggregation of repeated capture groups)
-- **LogType**: Template shows the structure with `<newLine>` markers indicating line boundaries in the original log
+* **Scalar fields**: `timestamp`, `level`, `spark_host`, `system_ip`, `system_port`,
+  `system_exception_type`, `system_exception_msg`
+* **Array field**: `system_stack` contains all 15 stack trace locations (demonstrates automatic
+  aggregation of repeated capture groups)
+* **LogType**: Template shows the structure with `<newLine>` markers indicating line boundaries in
+  the original log
 
-### Stream Parsing
+---
 
-When parsing log streams or files, timestamps are **required** to perform contextual anchoring. Timestamps act as delimiters that separate individual log events, enabling the parser to correctly group multi-line entries (like stack traces) into single events.
+#### Stream parsing
+
+When parsing log streams or files, timestamps are **required** to perform contextual anchoring.
+Timestamps act as delimiters that separate individual log events, enabling the parser to correctly
+group multi-line entries (like stack traces) into single events.
 
 ```python
 from log_surgeon import Parser, PATTERN
@@ -335,16 +416,23 @@ log-event-1 log template type:<timestamp> <level> server.TransportChannelHandler
 log-event-2 log template type:<timestamp> <level> master.Master: <system_ip>:<system_port> got disassociated, removing it.<newLine>
 ```
 
-The parser successfully separated the log stream into **3 distinct events** using timestamps as contextual anchors:
-- **Event 0**: Single-line app registration log
-- **Event 1**: Multi-line exception with 15 stack trace lines (demonstrates how timestamps bind multi-line events together)
-- **Event 2**: Single-line disassociation log
+The parser successfully separated the log stream into **three distinct events** using timestamps as
+contextual anchors:
+* **Event 0**: Single-line app registration log
+* **Event 1**: Multi-line exception with 15 stack trace lines (demonstrates how timestamps bind
+  multi-line events together)
+* **Event 2**: Single-line disassociation log
 
-Each log type shows the template structure with variable placeholders (`<level>`, `<system_ip>`, etc.), enabling pattern-based log analysis and grouping.
+Each log type shows the template structure with variable placeholders (`<level>`, `<system_ip>`,
+etc.), enabling pattern-based log analysis and grouping.
 
-### Using Pattern Constants
+---
 
-The `PATTERN` class provides pre-built regex patterns for common log elements like IP addresses, UUIDs, numbers, and file paths. See the [PATTERN reference](#pattern) for the complete list of available patterns.
+#### Using `PATTERN` constants
+
+The `PATTERN` class provides pre-built regex patterns for common log elements like IP addresses,
+UUIDs, numbers, and file paths. See the [PATTERN reference](#pattern) for the complete list of
+available patterns.
 
 ```python
 from log_surgeon import Parser, PATTERN
@@ -369,7 +457,9 @@ UUID: 550e8400-e29b-41d4-a716-446655440000
 Value: 42.5
 ```
 
-### Export to DataFrame
+---
+
+#### Export to DataFrame
 
 ```python
 from log_surgeon import Parser, Query
@@ -399,7 +489,9 @@ df = query.to_dataframe()
 print(df)
 ```
 
-### Filtering Events
+---
+
+#### Filtering events
 
 ```python
 from log_surgeon import Parser, Query
@@ -432,7 +524,9 @@ print(df)
 # 1         cpu     85
 ```
 
-### Including Log Template Type and Log Message
+---
+
+#### Including log template type and log message
 
 Use special fields `@log_type` and `@log_message` to include alongside extracted variables:
 
@@ -466,7 +560,9 @@ print(df)
 
 The `"*"` wildcard expands to all variables defined in the schema and can be combined with other fields like `@log_type` and `@log_message`.
 
-### Analyzing Log Types
+---
+
+#### Analyzing Log Types
 
 Discover and analyze log patterns in your data using log type analysis methods:
 
@@ -536,7 +632,298 @@ Log type samples:
     - 2024-01-01 ERROR: System status=failed
 ```
 
-## Quick Reference
+---
+
+## Key concepts
+
+> **CRITICAL: You must understand these concepts to use `log-surgeon` correctly.**
+>
+> `log-surgeon` works **fundamentally differently** from traditional regex engines like Python's
+> `re` module, PCRE, or JavaScript regex. Skipping this section may lead to patterns that don't
+> work as expected.
+
+### Token-based parsing and delimiters
+
+**CRITICAL:** `log-surgeon` uses **token-based** parsing, not character-based regex matching like
+traditional regex engines. This is the most important difference that affects how patterns work.
+
+#### How tokenization works
+
+Delimiters are characters used to split log messages into tokens. The default delimiters include:
+- Whitespace: space, tab (`\t`), newline (`\n`), carriage return (`\r`)
+- Punctuation: `:`, `,`, `!`, `;`, `%`, `@`, `/`, `(`, `)`, `[`, `]`
+
+For example, with default delimiters, the log message:
+```
+"abc def ghi"
+```
+is tokenized into three tokens: `["abc", "def", "ghi"]`
+
+You can customize delimiters when creating a Parser:
+
+```python
+parser = Parser(delimiters=r" \t\n,:")  # Custom delimiters
+```
+
+#### Token-Based Pattern Matching
+
+**Critical:** Patterns like `.*` only match **within a single token**, not across multiple tokens or delimiters.
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()  # Default delimiters include space
+parser.add_var("token", rf"(?<match>d.*)")
+parser.compile()
+
+# With "abc def ghi" tokenized as ["abc", "def", "ghi"]
+event = parser.parse_event("abc def ghi")
+
+# Matches only "def" (single token starting with 'd')
+# Does NOT match "def ghi" (would cross token boundary)
+print(event['match'])  # Output: "def"
+```
+
+**In a traditional regex engine**, `d.*` would match `"def ghi"` (everything from 'd' to end).
+**In log-surgeon**, `d.*` matches only `"def"` because patterns cannot cross delimiter boundaries.
+
+#### Why token-based?
+
+Token-based parsing enables:
+- **Faster parsing** by reducing search space
+- **Predictable behavior** aligned with log structure
+- **Efficient log type generation** for analytics
+
+#### Working with token boundaries
+
+To match across multiple tokens, you must use **character classes** like `[a-zA-Z]*` instead of `.`:
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()  # Default delimiters include space
+
+#  Using .* - only matches within a single token
+parser.add_var("wrong", rf"(?<match>d.*)")  # Matches only "def"
+
+#  Using character classes - matches across tokens
+parser.add_var("correct", rf"(?<match>d[a-z ]*i)")  # Matches "def ghi"
+parser.compile()
+
+event = parser.parse_event("abc def ghi")
+print(event['match'])  # Output: "def ghi"
+```
+
+**Key Rule:** Character classes like `[a-zA-Z]*`, `[a-z ]*`, or `[\w\s]*` can match across token
+boundaries, but `.*` cannot.
+
+#### Alternation requires grouping
+
+**CRITICAL:** Alternation (`|`) works differently in log-surgeon compared to traditional regex
+engines. You **must** use parentheses to group alternatives.
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()
+
+#  WRONG: Without grouping - matches "ab" AND ("c" OR "d") AND "ef"
+parser.add_var("wrong", rf"(?<word>abc|def)")
+# In log-surgeon, this is interpreted as: "ab" + "c|d" + "ef"
+# Matches: "abcef" or "abdef" (NOT "abc" or "def")
+
+#  CORRECT: With grouping - matches "abc" OR "def"
+parser.add_var("correct", rf"(?<word>(abc)|(def))")
+# Matches: "abc" or "def"
+parser.compile()
+```
+
+**In traditional regex engines**, `abc|def` means "abc" OR "def".
+**In log-surgeon**, `abc|def` means "ab" + ("c" OR "d") + "ef".
+
+**Key Rule:** Always use `(abc)|(def)` syntax for alternation to match complete alternatives.
+
+```python
+# More examples:
+parser.add_var("level", rf"(?<level>(ERROR)|(WARN)|(INFO))")  #  Correct
+parser.add_var("status", rf"(?<status>(success)|(failure))")  #  Correct
+parser.add_var("bad", rf"(?<status>success|failure)")         #  Wrong - unexpected behavior
+```
+
+#### Optional patterns
+
+For optional patterns, use `{0,1}` instead of `*`:
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()
+
+#  Avoid using * for optional patterns (matches 0 or more)
+parser.add_var("avoid", rf"(?<level>(ERROR)|(WARN))*")  # Can match empty string or multiple reps
+
+#  Do not use ? for optional patterns
+parser.add_var("avoid2", rf"(?<level>(ERROR)|(WARN))?")  # May not work as expected
+
+#  Use {0,1} for optional patterns (matches 0 or 1)
+parser.add_var("optional", rf"(?<level>(ERROR)|(WARN)){0,1}")  # Matches 0 or 1 occurrence
+parser.compile()
+```
+
+**Best practice:** Use `{0,1}` for optional elements. Avoid `*` (0 or more) and `?` for optional
+matching.
+
+You can also explicitly include delimiters in your pattern:
+
+```python
+# To match "def ghi", explicitly include the space delimiter
+parser.add_var("multi", rf"(?<match>d\w+\s+\w+)")
+# This matches "def " as one token segment, followed by "ghi"
+```
+
+Or adjust your delimiters to change tokenization behavior:
+
+```python
+# Use only newline as delimiter to treat entire lines as tokens
+parser = Parser(delimiters=r"\n")
+```
+
+### Named capture groups
+
+Use named capture groups in regex patterns to extract specific fields:
+
+```python
+parser.add_var("metric", rf"metric=(?<metric_name>\w+) value=(?<value>\d+)")
+```
+
+The syntax `(?<name>pattern)` creates a capture group that can be accessed as `event['name']`.
+
+**Note:** See [Using Raw f-strings](#using-raw-f-strings-for-regex-patterns) for best practices on
+writing regex patterns.
+
+### Using raw f-strings for regex patterns
+
+> **⚠️ STRONGLY RECOMMENDED: Use raw f-strings (`rf"..."`) for all regex patterns.**
+>
+> While not absolutely required, using regular strings will likely cause escaping issues and pattern
+failures. Raw f-strings prevent these problems.
+
+Raw f-strings combine the benefits of:
+- **Raw strings (`r"..."`)**: No need to double-escape regex special characters like `\d`, `\w`,
+  `\n`
+- **f-strings (`f"..."`)**: Easy interpolation of variables and pattern constants
+
+#### Why use raw f-strings?
+
+```python
+#  Without raw strings - requires double-escaping
+parser.add_var("metric", "value=(\\d+)")  # Hard to read, error-prone
+
+#  With raw f-strings - single escaping, clean and readable
+parser.add_var("metric", rf"value=(?<value>\d+)")
+```
+
+#### Watch out for braces in f-strings
+
+When using f-strings, literal `{` and `}` characters must be escaped by doubling them:
+
+```python
+from log_surgeon import Parser, Pattern
+
+parser = Parser()
+
+#  Correct: Escape literal braces in regex
+parser.add_var("json", rf"data={{(?<content>[^}}]+)}}")  # Matches: data={...}
+parser.add_var("range", rf"range={{(?<min>\d+),(?<max>\d+)}}")  # Matches: range={10,20}
+
+#  Using Pattern constants with interpolation
+parser.add_var("ip", rf"IP: (?<ip>{Pattern.IPV4})")
+parser.add_var("float", rf"value=(?<val>{Pattern.FLOAT})")
+
+#  Common regex patterns
+parser.add_var("digits", rf"\d+ items")  # No double-escaping needed
+parser.add_var("word", rf"name=(?<name>\w+)")
+parser.add_var("whitespace", rf"split\s+by\s+spaces")
+
+parser.compile()
+```
+
+#### Examples: raw f-strings vs regular strings
+
+```python
+# Regular string - requires double-escaping
+parser.add_var("path", "path=(?<path>\\w+/\\w+)")  # Hard to read
+
+# Raw f-string - natural regex syntax
+parser.add_var("path", rf"path=(?<path>\w+/\w+)")  # Clean and readable
+
+# With interpolation
+log_level = "INFO|WARN|ERROR"
+parser.add_var("level", rf"(?<level>{log_level})")  # Easy to compose
+```
+
+**Recommendation:** Consistently use `rf"..."` for all regex patterns. This approach:
+- Avoids double-escaping mistakes that break patterns
+- Makes patterns more readable
+- Allows easy use of Pattern constants and variables
+- Only requires watching for literal braces `{` and `}` in f-strings (escape as `{{` and `}}`)
+
+Using regular strings (`"..."`) will require double-escaping (e.g., `"\\d+"`) which is error-prone
+and can be hard to read.
+
+### Logical vs. physical names
+
+Internally, log-surgeon uses "physical" names (e.g., `CGPrefix0`, `CGPrefix1`) for capture groups,
+while you work with "logical" names (e.g., `user_id`, `thread`). The `GroupNameResolver` handles
+this mapping automatically.
+
+### Schema Format
+
+The schema defines delimiters, timestamps, and variables for parsing:
+
+```
+// schema delimiters
+delimiters: \t\r\n:,!;%@/\(\)\[\]
+
+// schema timestamps
+timestamp:<timestamp_regex>
+
+// schema variables
+variable_name:<variable_regex>
+```
+
+When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schema is built automatically.
+
+### Common Pitfalls
+
+ **Pattern doesn't match anything**
+- Check: Are you using `.*` to match across tokens? Use `[a-zA-Z ]*` instead
+- Check: Did you forget to call `parser.compile()`?
+- Check: Are your delimiters splitting tokens unexpectedly?
+
+ **Alternation not working (abc|def)**
+- Problem: `(?<name>abc|def)` doesn't match "abc" or "def" as expected
+- Solution: Use `(?<name>(abc)|(def))` with explicit grouping
+
+ **Pattern works in regex tester but not here**
+- Remember: log-surgeon is token-based, not character-based
+- Traditional regex engines match across entire strings
+- log-surgeon matches within token boundaries (delimited by spaces, colons, etc.)
+- Read: [Token-Based Parsing](#token-based-parsing-and-delimiters)
+
+ **Escape sequence errors in Python**
+- Problem: `parser.add_var("digits", "(?<num>\d+)")` raises SyntaxError
+- Solution: Use `rf"..."` (raw f-string) instead of `"..."` or `f"..."`
+- Example: `parser.add_var("digits", rf"(?<num>\d+)")`
+
+ **Optional pattern matching incorrectly**
+- Problem: Using `?` or `*` for optional patterns
+- Solution: Use `{0,1}` for optional elements
+- Example: `(?<level>(ERROR)|(WARN)){0,1}` for optional log level
+
+---
+
+## Reference
 
 | Task | Syntax |
 |------|--------|
@@ -548,8 +935,6 @@ Log type samples:
 | All variables | `.select(["*"])` |
 | Log type | `.select(["@log_type"])` |
 | Original message | `.select(["@log_message"])` |
-
-## API Reference
 
 ### Parser
 
@@ -566,7 +951,7 @@ High-level parser for extracting structured data from unstructured log messages.
 - `add_var(name: str, regex: str, hide_var_name_if_named_group_present: bool = True) -> Parser`
   - Add a variable pattern to the parser's schema
   - Supports named capture groups using `(?<name>)` syntax
-  - Use raw f-strings (`rf"..."`) for regex patterns (see [Using Raw F-Strings](#using-raw-f-strings-for-regex-patterns))
+  - Use raw f-strings (`rf"..."`) for regex patterns (see [Using Raw f-strings](#using-raw-f-strings-for-regex-patterns))
   - Returns self for method chaining
 
 - `add_timestamp(name: str, regex: str) -> Parser`
@@ -804,7 +1189,7 @@ Collection of pre-built regex patterns optimized for log parsing. These patterns
 | `PATTERN.JAVA_LOGGING_CODE_LOCATION_HINT` | Java logging location hint | `~[MyClass.java:42?]` |
 | `PATTERN.JAVA_STACK_LOCATION` | Java stack trace location | `java.util.ArrayList.add(ArrayList.java:123)` |
 
-#### Example Usage
+#### Example usage
 
 ```python
 from log_surgeon import Parser, PATTERN
@@ -850,284 +1235,11 @@ parser.add_var(
 parser.compile()
 ```
 
-## Key Concepts
-
-> **⚠️ CRITICAL: You must understand these concepts to use log-surgeon correctly.**
->
-> log-surgeon works **fundamentally differently** from traditional regex engines like Python's `re` module, PCRE, or JavaScript regex. Skipping this section will lead to patterns that don't work as expected.
-
-### Token-Based Parsing and Delimiters
-
-**CRITICAL:** log-surgeon uses **token-based** parsing, not character-based regex matching like traditional regex engines. This is the most important difference that affects how patterns work.
-
-#### How Tokenization Works
-
-Delimiters are characters used to split log messages into tokens. The default delimiters include:
-- Whitespace: space, tab (`\t`), newline (`\n`), carriage return (`\r`)
-- Punctuation: `:`, `,`, `!`, `;`, `%`, `@`, `/`, `(`, `)`, `[`, `]`
-
-For example, with default delimiters, the log message:
-```
-"abc def ghi"
-```
-is tokenized into three tokens: `["abc", "def", "ghi"]`
-
-You can customize delimiters when creating a Parser:
-
-```python
-parser = Parser(delimiters=r" \t\n,:")  # Custom delimiters
-```
-
-#### Token-Based Pattern Matching
-
-**Critical:** Patterns like `.*` only match **within a single token**, not across multiple tokens or delimiters.
-
-```python
-from log_surgeon import Parser
-
-parser = Parser()  # Default delimiters include space
-parser.add_var("token", rf"(?<match>d.*)")
-parser.compile()
-
-# With "abc def ghi" tokenized as ["abc", "def", "ghi"]
-event = parser.parse_event("abc def ghi")
-
-# ✅ Matches only "def" (single token starting with 'd')
-# ❌ Does NOT match "def ghi" (would cross token boundary)
-print(event['match'])  # Output: "def"
-```
-
-**In a traditional regex engine**, `d.*` would match `"def ghi"` (everything from 'd' to end).
-**In log-surgeon**, `d.*` matches only `"def"` because patterns cannot cross delimiter boundaries.
-
-#### Why Token-Based?
-
-Token-based parsing enables:
-- **Faster parsing** by reducing search space
-- **Predictable behavior** aligned with log structure
-- **Efficient log type generation** for analytics
-
-#### Working with Token Boundaries
-
-To match across multiple tokens, you must use **character classes** like `[a-zA-Z]*` instead of `.`:
-
-```python
-from log_surgeon import Parser
-
-parser = Parser()  # Default delimiters include space
-
-# ❌ Using .* - only matches within a single token
-parser.add_var("wrong", rf"(?<match>d.*)")  # Matches only "def"
-
-# ✅ Using character classes - matches across tokens
-parser.add_var("correct", rf"(?<match>d[a-z ]*i)")  # Matches "def ghi"
-parser.compile()
-
-event = parser.parse_event("abc def ghi")
-print(event['match'])  # Output: "def ghi"
-```
-
-**Key Rule:** Character classes like `[a-zA-Z]*`, `[a-z ]*`, or `[\w\s]*` can match across token boundaries, but `.*` cannot.
-
-#### Alternation Requires Grouping
-
-**CRITICAL:** Alternation (`|`) works differently in log-surgeon compared to traditional regex engines. You **must** use parentheses to group alternatives.
-
-```python
-from log_surgeon import Parser
-
-parser = Parser()
-
-# ❌ WRONG: Without grouping - matches "ab" AND ("c" OR "d") AND "ef"
-parser.add_var("wrong", rf"(?<word>abc|def)")
-# In log-surgeon, this is interpreted as: "ab" + "c|d" + "ef"
-# Matches: "abcef" or "abdef" (NOT "abc" or "def")
-
-# ✅ CORRECT: With grouping - matches "abc" OR "def"
-parser.add_var("correct", rf"(?<word>(abc)|(def))")
-# Matches: "abc" or "def"
-parser.compile()
-```
-
-**In traditional regex engines**, `abc|def` means "abc" OR "def".
-**In log-surgeon**, `abc|def` means "ab" + ("c" OR "d") + "ef".
-
-**Key Rule:** Always use `(abc)|(def)` syntax for alternation to match complete alternatives.
-
-```python
-# More examples:
-parser.add_var("level", rf"(?<level>(ERROR)|(WARN)|(INFO))")  # ✅ Correct
-parser.add_var("status", rf"(?<status>(success)|(failure))")  # ✅ Correct
-parser.add_var("bad", rf"(?<status>success|failure)")         # ❌ Wrong - unexpected behavior
-```
-
-#### Optional Patterns
-
-For optional patterns, use `{0,1}` instead of `*`:
-
-```python
-from log_surgeon import Parser
-
-parser = Parser()
-
-# ❌ Avoid using * for optional patterns (matches 0 or more)
-parser.add_var("avoid", rf"(?<level>(ERROR)|(WARN))*")  # Can match empty string or multiple repetitions
-
-# ❌ Do not use ? for optional patterns
-parser.add_var("avoid2", rf"(?<level>(ERROR)|(WARN))?")  # May not work as expected
-
-# ✅ Use {0,1} for optional patterns (matches 0 or 1)
-parser.add_var("optional", rf"(?<level>(ERROR)|(WARN)){0,1}")  # Matches 0 or 1 occurrence
-parser.compile()
-```
-
-**Best Practice:** Use `{0,1}` for optional elements. Avoid `*` (0 or more) and `?` for optional matching.
-
-You can also explicitly include delimiters in your pattern:
-
-```python
-# To match "def ghi", explicitly include the space delimiter
-parser.add_var("multi", rf"(?<match>d\w+\s+\w+)")
-# This matches "def " as one token segment, followed by "ghi"
-```
-
-Or adjust your delimiters to change tokenization behavior:
-
-```python
-# Use only newline as delimiter to treat entire lines as tokens
-parser = Parser(delimiters=r"\n")
-```
-
-### Named Capture Groups
-
-Use named capture groups in regex patterns to extract specific fields:
-
-```python
-parser.add_var("metric", rf"metric=(?<metric_name>\w+) value=(?<value>\d+)")
-```
-
-The syntax `(?<name>pattern)` creates a capture group that can be accessed as `event['name']`.
-
-**Note:** See [Using Raw F-Strings](#using-raw-f-strings-for-regex-patterns) for best practices on writing regex patterns.
-
-### Using Raw F-Strings for Regex Patterns
-
-> **⚠️ STRONGLY RECOMMENDED: Use raw f-strings (`rf"..."`) for all regex patterns.**
->
-> While not absolutely required, using regular strings will likely cause escaping issues and pattern failures. Raw f-strings prevent these problems.
-
-Raw f-strings combine the benefits of:
-- **Raw strings (`r"..."`)**: No need to double-escape regex special characters like `\d`, `\w`, `\n`
-- **F-strings (`f"..."`)**: Easy interpolation of variables and pattern constants
-
-#### Why Use Raw F-Strings?
-
-```python
-# ❌ Without raw strings - requires double-escaping
-parser.add_var("metric", "value=(\\d+)")  # Hard to read, error-prone
-
-# ✅ With raw f-strings - single escaping, clean and readable
-parser.add_var("metric", rf"value=(?<value>\d+)")
-```
-
-#### Watch Out for Braces in F-Strings
-
-When using f-strings, literal `{` and `}` characters must be escaped by doubling them:
-
-```python
-from log_surgeon import Parser, Pattern
-
-parser = Parser()
-
-# ✅ Correct: Escape literal braces in regex
-parser.add_var("json", rf"data={{(?<content>[^}}]+)}}")  # Matches: data={...}
-parser.add_var("range", rf"range={{(?<min>\d+),(?<max>\d+)}}")  # Matches: range={10,20}
-
-# ✅ Using Pattern constants with interpolation
-parser.add_var("ip", rf"IP: (?<ip>{Pattern.IPV4})")
-parser.add_var("float", rf"value=(?<val>{Pattern.FLOAT})")
-
-# ✅ Common regex patterns
-parser.add_var("digits", rf"\d+ items")  # No double-escaping needed
-parser.add_var("word", rf"name=(?<name>\w+)")
-parser.add_var("whitespace", rf"split\s+by\s+spaces")
-
-parser.compile()
-```
-
-#### Examples: Raw F-Strings vs Regular Strings
-
-```python
-# Regular string - requires double-escaping
-parser.add_var("path", "path=(?<path>\\w+/\\w+)")  # Hard to read
-
-# Raw f-string - natural regex syntax
-parser.add_var("path", rf"path=(?<path>\w+/\w+)")  # Clean and readable
-
-# With interpolation
-log_level = "INFO|WARN|ERROR"
-parser.add_var("level", rf"(?<level>{log_level})")  # Easy to compose
-```
-
-**Recommendation:** Consistently use `rf"..."` for all regex patterns. This approach:
-- Avoids double-escaping mistakes that break patterns
-- Makes patterns more readable
-- Allows easy use of Pattern constants and variables
-- Only requires watching for literal braces `{` and `}` in f-strings (escape as `{{` and `}}`)
-
-Using regular strings (`"..."`) will require double-escaping (e.g., `"\\d+"`) which is error-prone and hard to read.
-
-### Logical vs Physical Names
-
-Internally, log-surgeon uses "physical" names (e.g., `CGPrefix0`, `CGPrefix1`) for capture groups, while you work with "logical" names (e.g., `user_id`, `thread`). The `GroupNameResolver` handles this mapping automatically.
-
-### Schema Format
-
-The schema defines delimiters, timestamps, and variables for parsing:
-
-```
-// schema delimiters
-delimiters: \t\r\n:,!;%@/\(\)\[\]
-
-// schema timestamps
-timestamp:<timestamp_regex>
-
-// schema variables
-variable_name:<variable_regex>
-```
-
-When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schema is built automatically.
-
-## Common Pitfalls
-
-❌ **Pattern doesn't match anything**
-- Check: Are you using `.*` to match across tokens? Use `[a-zA-Z ]*` instead
-- Check: Did you forget to call `parser.compile()`?
-- Check: Are your delimiters splitting tokens unexpectedly?
-
-❌ **Alternation not working (abc|def)**
-- Problem: `(?<name>abc|def)` doesn't match "abc" or "def" as expected
-- Solution: Use `(?<name>(abc)|(def))` with explicit grouping
-
-❌ **Pattern works in regex tester but not here**
-- Remember: log-surgeon is token-based, not character-based
-- Traditional regex engines match across entire strings
-- log-surgeon matches within token boundaries (delimited by spaces, colons, etc.)
-- Read: [Token-Based Parsing](#token-based-parsing-and-delimiters)
-
-❌ **Escape sequence errors in Python**
-- Problem: `parser.add_var("digits", "(?<num>\d+)")` raises SyntaxError
-- Solution: Use `rf"..."` (raw f-string) instead of `"..."` or `f"..."`
-- Example: `parser.add_var("digits", rf"(?<num>\d+)")`
-
-❌ **Optional pattern matching incorrectly**
-- Problem: Using `?` or `*` for optional patterns
-- Solution: Use `{0,1}` for optional elements
-- Example: `(?<level>(ERROR)|(WARN)){0,1}` for optional log level
+---
 
 ## Development
 
-### Building from Source
+### Building from source
 
 ```bash
 # Clone the repository
@@ -1142,7 +1254,7 @@ cmake -S . -B build
 cmake --build build
 ```
 
-### Running Tests
+### Running tests
 
 ```bash
 # Install test dependencies
@@ -1152,26 +1264,21 @@ pip install pytest
 python -m pytest tests/
 ```
 
-## Requirements
-
-- Python >= 3.9
-- pandas
-- pyarrow
-
-### Build Requirements
-
-- C++20 compatible compiler
-- CMake >= 3.15
+---
 
 ## License
 
 Apache License 2.0 - See [LICENSE](LICENSE) for details.
+
+---
 
 ## Links
 
 - [Homepage](https://github.com/y-scope/log-surgeon-ffi-py)
 - [Bug Tracker](https://github.com/y-scope/log-surgeon-ffi-py/issues)
 - [log-surgeon C++ library](https://github.com/y-scope/log-surgeon)
+
+---
 
 ## Contributing
 
