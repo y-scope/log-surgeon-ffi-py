@@ -1,4 +1,4 @@
-# `log-surgeon-ffi`
+# log-surgeon-ffi
 
 `log-surgeon-ffi` provides Python foreign function interface (FFI) bindings for
 [`log-surgeon`](https://github.com/y-scope/log-surgeon).
@@ -43,10 +43,7 @@ enables efficient extraction of structured information from unstructured log fil
 
 ### Why `log-surgeon`?
 
-Traditional regex engines are often slow to execute, prone to errors, and costly to maintain. For
-example, Meta uses RE2 (a state-of-the-art regex engine) to parse logs, but they still face
-scalability and maintenance challenges, which limits extraction to a small set of fields such as
-timestamps, levels, and component names.
+Traditional regex engines are often slow to execute, prone to errors, and costly to maintain.
 
 `log-surgeon` streamlines the process by identifying, extracting, and labeling variable values with
 semantic context, and then inferring a log template in a single pass. `log-surgeon` is also built to
@@ -75,10 +72,7 @@ Unstructured log data is automatically transformed into structured semantic repr
 This structured output unlocks powerful downstream capabilities:
 
 * **Knowledge graph construction.** Build relationship graphs between entities extracted from logs
-  (e.g., linking `app_id` → `app_name` → `worker_id`). The structured output fits tools such as
-  [Stitch](https://www.usenix.org/conference/osdi16/technical-sessions/presentation/zhao), which
-  uses flow reconstruction from logs to perform non-intrusive performance profiling and debugging
-  across distributed systems.
+  (e.g., linking `app_id` → `app_name` → `worker_id`).
 
 * **Template-based summarization.** Compress massive datasets into compact template sets for human
   and agent consumption. Templates act as natural tokens for LLMs. Instead of millions of raw lines,
