@@ -919,16 +919,15 @@ When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schem
 
 ## Reference
 
-| Task | Syntax |
-|------|--------|
-| Named capture | `(?<name>pattern)` |
-| Alternation | `(?<name>(opt1)|(opt2))` (NOT `opt1|opt2`) |
-| Optional | `{0,1}` (NOT `?` or `*`) |
-| Match across tokens | Use `[a-z ]*` (NOT `.*`) |
-| Pattern string | `rf"..."` (raw f-string recommended) |
-| All variables | `.select(["*"])` |
-| Log type | `.select(["@log_type"])` |
-| Original message | `.select(["@log_message"])` |
+| Task                | Syntax                                       |
+|---------------------|----------------------------------------------|
+| Named capture       | `(?<name>pattern)`                           |
+| Alternation         | `(?<name>(opt1)\|(opt2))` NOT `(opt1\|opt2`) |
+| Optional            | `{0,1}` (NOT `?` or `*`)                     |
+| Match across tokens | Use `[a-z ]*` (NOT `.*`)                     |
+| Pattern string      | `rf"..."` (raw f-string recommended)         |
+| Log type            | `.select(["@log_type"])`                     |
+| Original message    | `.select(["@log_message"])`                  |
 
 ### Parser
 
