@@ -111,7 +111,7 @@ class PATTERN:
     Example: "app.log", "my_file.txt", "config-2024.yaml", "data_file_v1.2.3"
     """
 
-    LINUX_FILE_PATH = rf"([{LINUX_FILE_NAME_CHARSET}]+/)*{LINUX_FILE_NAME}+"
+    LINUX_FILE_PATH = rf"([{LINUX_FILE_NAME_CHARSET}]+/)*({LINUX_FILE_NAME})+"
     """
     Pattern for Linux file paths.
 
