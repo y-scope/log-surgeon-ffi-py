@@ -455,10 +455,10 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
     for (auto token_idx{starting_token_idx}; token_idx < log_buf->pos(); token_idx++) {
         auto token_view{log_buf->get_token(token_idx)};
         if (1 < token_idx || (1 == token_idx && true == log_buf->has_timestamp())) {
-            token_view.m_start_pos++;
+            token_view.increment_start_pos();
         }
 
-        auto const token_type{token_view.m_type_ids_ptr->at(0)};
+        auto const token_type{token_view.get_type_ids()->at(0)};
         auto const token_name{log_parser.get_id_symbol(token_type)};
         auto token_str{token_view.to_string()};
         if (m_debug) {
@@ -530,8 +530,8 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                         && false == end_positions.empty() && -1 < end_positions[0])
                     {
                         auto capture_view{token_view};
-                        capture_view.m_start_pos = start_positions[0];
-                        capture_view.m_end_pos = end_positions[0];
+                        capture_view.set_start_pos(start_positions[0]);
+                        capture_view.set_end_pos(end_positions[0]);
                         PyObject* py_capture{
                                 PyUnicode_FromString(capture_view.to_string().c_str())
                         };
