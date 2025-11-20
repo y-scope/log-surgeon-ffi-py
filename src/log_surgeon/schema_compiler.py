@@ -5,7 +5,7 @@ import re
 from log_surgeon.group_name_resolver import GroupNameResolver
 from log_surgeon.variable import Variable
 
-DEFAULT_DELIMITERS = r" \t\r\n:,!;%@/\(\)\[\]"
+DEFAULT_DELIMITERS = r" \t\r\n:,!;%@/()[]"
 """Default delimiter characters for tokenization."""
 
 LOG_SURGEON_HIDDEN_VARIABLE_PREFIX = "LogSurgeonHiddenVariables"

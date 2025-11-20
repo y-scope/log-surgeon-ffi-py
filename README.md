@@ -656,7 +656,7 @@ is tokenized into three tokens: `["abc", "def", "ghi"]`
 You can customize delimiters when creating a Parser:
 
 ```python
-parser = Parser(delimiters=r" \t\n,:")  # Custom delimiters
+parser = Parser(delimiters=r" \t\n,:")  # Custom delimiters (no escaping needed for special chars)
 ```
 
 #### Token-Based Pattern Matching
@@ -877,7 +877,7 @@ The schema defines delimiters, timestamps, and variables for parsing:
 
 ```
 // schema delimiters
-delimiters: \t\r\n:,!;%@/\(\)\[\]
+delimiters: \t\r\n:,!;%@/()[]
 
 // schema timestamps
 timestamp:<timestamp_regex>
@@ -935,9 +935,10 @@ High-level parser for extracting structured data from unstructured log messages.
 
 #### Constructor
 
-- `Parser(delimiters: str = r" \t\r\n:,!;%@/\(\)\[\]")`
+- `Parser(delimiters: str = r" \t\r\n:,!;%@/()[]")`
   - Initialize a parser with optional custom delimiters
   - Default delimiters include space, tab, newline, and common punctuation
+  - Note: Special characters no longer need to be escaped (as of log-surgeon 0.7.0)
 
 #### Methods
 

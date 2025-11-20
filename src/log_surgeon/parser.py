@@ -37,7 +37,7 @@ class Parser:
 
     """
 
-    def __init__(self, delimiters: str = r" \t\r\n:,!;%@/\(\)\[\]") -> None:
+    def __init__(self, delimiters: str = r" \t\r\n:,!;%@/()[]") -> None:
         """
         Initialize the parser.
 
@@ -45,6 +45,7 @@ class Parser:
             delimiters: String of delimiter characters for tokenization.
                 Default includes space, tab, newline, and common punctuation.
                 These characters are used to split log messages into tokens.
+                Note: Special characters no longer need to be escaped (as of log-surgeon 0.7.0).
 
         """
         self._parser: ReaderParser | None = None

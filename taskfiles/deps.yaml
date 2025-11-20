@@ -48,8 +48,8 @@ tasks:
             - "-Dlog_surgeon_BUILD_TESTING=OFF"
           CMAKE_PACKAGE_NAME: "log_surgeon"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CMAKE_SETTINGS_DIR}}"
-          TAR_SHA256: "3a6a0dfdab40c0bed261b2afb45b915dae859ae410fd52769df4d53059453aa5"
-          TAR_URL: "https://github.com/y-scope/log-surgeon/archive/b1c4fea.tar.gz"
+          TAR_SHA256: "396ef8822e687b0bb8ca433a360e9e1d39a51620df89cac606db5e0f49d1b265"
+          TAR_URL: "https://github.com/y-scope/log-surgeon/archive/1135c2e.tar.gz"
           WORK_DIR: "{{.G_DEPS_DIR}}"
 
   fmt:
