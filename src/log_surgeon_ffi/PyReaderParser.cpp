@@ -496,7 +496,7 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
             }
             default: {
                 auto const& lexer{event.get_log_parser().m_lexer};
-                auto capture_ids{lexer.get_capture_ids_from_rule_id(token_type)};
+                auto captures{lexer.get_captures_from_rule_id(token_type)};
 
                 if (false == token_name.starts_with("LogSurgeonHiddenVariables")) {
                     PyObject* py_token_str{PyUnicode_FromString(token_str.c_str())};
@@ -506,12 +506,12 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                         return Py_None;
                     }
                 }
-                if (false == capture_ids.has_value()) {
+                if (false == captures.has_value()) {
                     break;
                 }
 
-                for (auto const capture_id : capture_ids.value()) {
-                    auto const register_ids{lexer.get_reg_ids_from_capture_id(capture_id)};
+                for (auto const* capture : captures.value()) {
+                    auto const register_ids{lexer.get_reg_ids_from_capture(capture)};
                     if (false == register_ids.has_value()) {
                         // TODO: throw
                         return Py_None;
@@ -521,7 +521,7 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
                     auto const start_positions{token_view.get_reversed_reg_positions(start_reg_id)};
                     auto const end_positions{token_view.get_reversed_reg_positions(end_reg_id)};
 
-                    auto capture_name{lexer.m_id_symbol.at(capture_id)};
+                    auto capture_name{capture->get_name()};
                     PyObject* py_capture_array{
                             get_py_token_array(py_var_dict, capture_name.c_str())
                     };
