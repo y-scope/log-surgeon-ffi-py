@@ -97,9 +97,7 @@ class LogEvent:
 
         return None
 
-    def get_capture_group_str_representation(
-        self, name: str, raw_output: bool = False
-    ) -> str:
+    def get_capture_group_str_representation(self, name: str, raw_output: bool = False) -> str:
         """
         Get the string representation of a capture group value.
 

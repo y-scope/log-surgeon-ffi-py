@@ -18,7 +18,12 @@ class Variable:
     """
 
     def __init__(
-        self, name: str, regex: str, capture_group_names: set[str], priority: int, insertion_order: int
+        self,
+        name: str,
+        regex: str,
+        capture_group_names: set[str],
+        priority: int,
+        insertion_order: int,
     ) -> None:
         """
         Initialize a Variable.
