@@ -9,7 +9,6 @@ Main Classes:
     Query: Query builder for parsing log events into DataFrames and Arrow Tables
     SchemaCompiler: Compiler for constructing log-surgeon schema definitions
     LogEvent: Represents a parsed log event with extracted variables
-    GroupNameResolver: Bidirectional mapping for capture group names
 
 Example:
     >>> from log_surgeon import Parser
@@ -22,7 +21,6 @@ Example:
 
 """
 
-from .group_name_resolver import GroupNameResolver
 from .log_event import LogEvent
 from .parser import Parser
 from .pattern import PATTERN
@@ -31,7 +29,6 @@ from .schema_compiler import SchemaCompiler
 
 __all__ = [
     "PATTERN",
-    "GroupNameResolver",
     "LogEvent",
     "Parser",
     "Query",

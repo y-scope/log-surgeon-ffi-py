@@ -3,11 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from log_surgeon.group_name_resolver import GroupNameResolver
 
 
 class LogEvent:
@@ -16,8 +11,7 @@ class LogEvent:
 
     A LogEvent contains the original log message, a log type (template), and
     extracted variables from the log message based on the schema pattern matching.
-    Variables can be accessed directly using dictionary-style indexing with their
-    logical (user-defined) names.
+    Variables can be accessed directly using dictionary-style indexing.
 
     Example:
         >>> event = parser.parse_event("INFO [main] Processing value=42")
@@ -34,7 +28,6 @@ class LogEvent:
         """Initialize an empty LogEvent."""
         self._log_message: str | None = None
         self._var_dict: dict[str, str | list[str | int | float]] = {}
-        self._group_name_resolver: GroupNameResolver | None = None
 
     def get_log_message(self) -> str:
         """
@@ -49,83 +42,69 @@ class LogEvent:
 
     def get_log_type(self) -> str:
         """
-        Get the log type (template) for this event with resolved group names.
+        Get the log type (template) for this event.
 
         Returns:
-            The log type string with placeholders for variable fields,
-            prefixed with <timestamp> and with logical group names resolved
+            The log type string with placeholders for variable fields
 
         """
-
-        def resolve_physical_group_name(match: re.Match[str]) -> str:
-            physical_group_name = match.group(1)
-            # _group_name_resolver is always initialized by FFI layer
-            logical_group_name = self._group_name_resolver.get_logical_name(physical_group_name)  # type: ignore[union-attr]
-            return f"<{logical_group_name}>"
-
         log_type_value = self._var_dict.get("@LogType")
         if not isinstance(log_type_value, str):
             msg = "LogType not found or invalid in LogEvent"
             raise TypeError(msg)
 
-        resolved_logtype = re.sub(r"<(CGPrefix\d+)>", resolve_physical_group_name, log_type_value)
-        return f"{resolved_logtype}"
+        return log_type_value
 
     def get_capture_group(
-        self, logical_capture_group_name: str, raw_output: bool = False
+        self, name: str, raw_output: bool = False
     ) -> str | list[str | int | float] | None:
         """
-        Get the value of a capture group by its logical name.
+        Get the value of a capture group by its name.
 
         Args:
-            logical_capture_group_name: Logical (user-defined) name of the capture group
+            name: Name of the capture group
             raw_output: If True, always return the raw list. If False (default),
                 return unwrapped value for single-element lists
 
         Returns:
-            - For @LogType: the resolved log type string
+            - For @LogType: the log type string
             - For capture groups with no values: None
             - For capture groups with single value (raw_output=False): the unwrapped value
             - Otherwise: list of values
 
         Example:
-            >>> event.get_capture_group("thread", resolver)  # Single value
+            >>> event.get_capture_group("thread")  # Single value
             'main'
-            >>> event.get_capture_group("thread", resolver, raw_output=True)
+            >>> event.get_capture_group("thread", raw_output=True)
             ['main']
-            >>> event.get_capture_group("errors", resolver)  # Multiple values
+            >>> event.get_capture_group("errors")  # Multiple values
             ['error1', 'error2']
 
         """
-        # Special case: @LogType returns the resolved log type
-        if logical_capture_group_name == "@log_type":
+        # Special case: @LogType returns the log type
+        if name == "@log_type":
             return self.get_log_type()
 
-        if logical_capture_group_name == "@log_message":
+        if name == "@log_message":
             return self.get_log_message()
 
-        # Look up all physical names for this logical name
-        # _group_name_resolver is always initialized by FFI layer
-        physical_names = self._group_name_resolver.get_physical_names(  # type: ignore[union-attr]
-            logical_capture_group_name
-        )
-        for physical_group_name in physical_names:
-            value = self._var_dict.get(physical_group_name)
-            if value:
-                if raw_output or len(value) > 1:
-                    return value
-                return value[0]  # type: ignore[return-value]
+        # Look up the capture group value directly
+        value = self._var_dict.get(name)
+        if value:
+            if raw_output or len(value) > 1:
+                return value
+            return value[0]  # type: ignore[return-value]
 
         return None
 
     def get_capture_group_str_representation(
-        self, logical_capture_group_name: str, raw_output: bool = False
+        self, name: str, raw_output: bool = False
     ) -> str:
         """
         Get the string representation of a capture group value.
 
         Args:
-            logical_capture_group_name: Logical name of the capture group
+            name: Name of the capture group
             raw_output: If True, return raw list format. If False, unwrap single values
 
         Returns:
@@ -138,14 +117,14 @@ class LogEvent:
             "['1', '2', '3']"
 
         """
-        return f"{self.get_capture_group(logical_capture_group_name, raw_output)}"
+        return f"{self.get_capture_group(name, raw_output)}"
 
-    def __getitem__(self, logical_capture_group_name: str) -> str | list[str | int | float]:
+    def __getitem__(self, name: str) -> str | list[str | int | float]:
         """
-        Access a capture group value by its logical name.
+        Access a capture group value by its name.
 
         Args:
-            logical_capture_group_name: Logical (user-defined) name of the capture group
+            name: Name of the capture group
 
         Returns:
             The captured value(s) for the group
@@ -157,25 +136,22 @@ class LogEvent:
             ['1', '2', '3']
 
         """
-        result = self.get_capture_group(logical_capture_group_name, raw_output=False)
+        result = self.get_capture_group(name, raw_output=False)
         if result is None:
-            msg = f"Capture group '{logical_capture_group_name}' not found"
+            msg = f"Capture group '{name}' not found"
             raise KeyError(msg)
         return result
 
     def get_resolved_dict(self) -> dict[str, str | list[str | int | float]]:
         """
-        Get a dictionary with all capture groups using logical (user-defined) names.
+        Get a dictionary with all capture groups.
 
-        This method converts the internal representation (which uses physical names like
-        "CGPrefix0") to a user-friendly dictionary with logical names. Single-element
-        lists are unwrapped to their scalar values.
+        Single-element lists are unwrapped to their scalar values.
 
         Returns:
-            Dictionary mapping logical capture group names to their values.
+            Dictionary mapping capture group names to their values.
             - "@LogType" is excluded from the output
             - Timestamp fields are consolidated under "timestamp" key
-            - Physical names (CGPrefix*) are converted to logical names
             - Single-value lists are unwrapped to scalar values
 
         Example:
@@ -199,13 +175,11 @@ class LogEvent:
                     resolved_dict["timestamp"] = value[0]  # type: ignore[assignment]
                 continue
 
-            # _group_name_resolver is always initialized by FFI layer
-            logical_name = self._group_name_resolver.get_logical_name(key)  # type: ignore[union-attr]
             if value:
                 if len(value) > 1:
-                    resolved_dict[logical_name] = value
+                    resolved_dict[key] = value
                 else:
-                    resolved_dict[logical_name] = value[0]  # type: ignore[assignment]
+                    resolved_dict[key] = value[0]  # type: ignore[assignment]
 
         return resolved_dict
 

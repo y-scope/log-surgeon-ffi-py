@@ -865,12 +865,6 @@ parser.add_var("level", rf"(?<level>{log_level})")  # Easy to compose
 Using regular strings (`"..."`) will require double-escaping (e.g., `"\\d+"`) which is error-prone
 and can be hard to read.
 
-### Logical vs. physical names
-
-Internally, log-surgeon uses "physical" names (e.g., `CGPrefix0`, `CGPrefix1`) for capture groups,
-while you work with "logical" names (e.g., `user_id`, `thread`). The `GroupNameResolver` handles
-this mapping automatically.
-
 ### Schema Format
 
 The schema defines delimiters, timestamps, and variables for parsing:
@@ -957,9 +951,6 @@ High-level parser for extracting structured data from unstructured log messages.
   - Must be called after adding variables and before parsing
   - Set `enable_debug_logs=True` to output debug information to stderr
 
-- `load_schema(schema: str, group_name_resolver: GroupNameResolver) -> None`
-  - Load a pre-built schema string to configure the parser
-
 - `parse(input: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> Generator[LogEvent, None, None]`
   - Parse all log events from a string, file object, or stream
   - Accepts strings, text/binary file objects, StringIO, or BytesIO
@@ -980,10 +971,10 @@ Represents a parsed log event with extracted variables.
   - Get the original log message
 
 - `get_log_type() -> str`
-  - Get the generated log type (template) with logical group names
+  - Get the generated log type (template)
 
-- `get_capture_group(logical_capture_group_name: str, raw_output: bool = False) -> str | list | None`
-  - Get the value of a capture group by its logical name
+- `get_capture_group(name: str, raw_output: bool = False) -> str | list | None`
+  - Get the value of a capture group by name
   - If `raw_output=False` (default), single values are unwrapped from lists
   - Returns None if capture group not found
 
@@ -991,8 +982,7 @@ Represents a parsed log event with extracted variables.
   - Get the string representation of a capture group value
 
 - `get_resolved_dict() -> dict[str, str | list]`
-  - Get a dictionary with all capture groups using logical (user-defined) names
-  - Physical names (CGPrefix*) are converted to logical names
+  - Get a dictionary with all capture groups
   - Timestamp fields are consolidated under "timestamp" key
   - Single-value lists are unwrapped to scalar values
   - "@LogType" is excluded from the output
@@ -1002,7 +992,7 @@ Represents a parsed log event with extracted variables.
   - Shorthand for `get_capture_group(key, raw_output=False)`
 
 - `__str__() -> str`
-  - Get formatted JSON representation of the log event with logical group names
+  - Get formatted JSON representation of the log event
   - Uses `get_resolved_dict()` internally
 
 ### Query
@@ -1057,8 +1047,8 @@ Query builder for parsing log events into structured data formats.
 - `get_rows() -> list[list]`
   - Extract rows of field values from parsed events
 
-- `get_vars() -> KeysView[str]`
-  - Get all variable names (logical capture group names) defined in the schema
+- `get_vars() -> set[str]`
+  - Get all variable names (capture group names) defined in the schema
 
 - `get_log_types() -> Generator[str, None, None]`
   - Get all unique log types from parsed events
@@ -1103,33 +1093,6 @@ Compiler for constructing log-surgeon schema definitions.
 
 - `compile() -> str`
   - Compile the final schema string
-
-- `get_capture_group_name_resolver() -> GroupNameResolver`
-  - Get the resolver for mapping logical to physical capture group names
-
-### GroupNameResolver
-
-Bidirectional mapping between logical (user-defined) and physical (auto-generated) group names.
-
-#### Constructor
-
-- `GroupNameResolver(physical_name_prefix: str)`
-  - Initialize with a prefix for auto-generated physical names
-
-#### Methods
-
-- `create_new_physical_name(logical_name: str) -> str`
-  - Create a new unique physical name for a logical name
-  - Each call generates a new physical name
-
-- `get_physical_names(logical_name: str) -> set[str]`
-  - Get all physical names associated with a logical name
-
-- `get_logical_name(physical_name: str) -> str`
-  - Get the logical name for a physical name
-
-- `get_all_logical_names() -> KeysView[str]`
-  - Get all logical names that have been registered
 
 ### PATTERN
 

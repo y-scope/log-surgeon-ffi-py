@@ -6,9 +6,8 @@ import io
 from typing import BinaryIO, TextIO, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, KeysView
+    from collections.abc import Generator
 
-    from log_surgeon.group_name_resolver import GroupNameResolver
     from log_surgeon.log_event import LogEvent
 
 from log_surgeon.schema_compiler import SchemaCompiler
@@ -112,20 +111,8 @@ class Parser:
         self._parser = ReaderParser(
             io.BytesIO(),
             self._schema_compiler.compile(),
-            self._schema_compiler.get_capture_group_name_resolver(),
             enable_debug_logs,
         )
-
-    def load_schema(self, schema: str, group_name_resolver: GroupNameResolver) -> None:
-        """
-        Load a schema string to configure the parser.
-
-        Args:
-            schema: Schema definition string
-            group_name_resolver: GroupNameResolver for mapping logical to physical group names
-
-        """
-        self._parser = ReaderParser(io.BytesIO(), schema, group_name_resolver)
 
     def parse_event(self, payload: str) -> LogEvent | None:
         r"""
@@ -221,16 +208,16 @@ class Parser:
         while (event := self._parser.parse_next_log_event()) is not None:
             yield event
 
-    def get_vars(self) -> KeysView[str]:
+    def get_vars(self) -> set[str]:
         r"""
-        Get all variable names (logical capture group names) defined in the schema.
+        Get all variable names (capture group names) defined in the schema.
 
-        This method returns all the logical names that were defined using add_var()
+        This method returns all the capture group names that were defined using add_var()
         or present in the loaded schema. These correspond to the keys available
         in parsed LogEvent objects.
 
         Returns:
-            A view of all variable names defined in the schema
+            Set of all variable names defined in the schema
 
         Example:
             >>> parser = Parser()
@@ -238,10 +225,10 @@ class Parser:
             >>> parser.add_var("status", r"status=(?<status>\\w+)")
             >>> parser.compile()
             >>> parser.get_vars()
-            dict_keys(['metric', 'status'])
+            {'value', 'status'}
 
         """
-        return self._schema_compiler.get_capture_group_name_resolver().get_all_logical_names()
+        return self._schema_compiler.get_all_capture_group_names()
 
     def _ensure_initialized(self) -> None:
         """

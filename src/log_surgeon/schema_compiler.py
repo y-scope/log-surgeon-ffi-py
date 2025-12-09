@@ -2,7 +2,6 @@
 
 import re
 
-from log_surgeon.group_name_resolver import GroupNameResolver
 from log_surgeon.variable import Variable
 
 DEFAULT_DELIMITERS = r" \t\r\n:,!;%@/()[]"
@@ -23,8 +22,7 @@ class SchemaCompiler:
     Compiler for constructing log-surgeon schema definitions.
 
     The SchemaCompiler provides a fluent interface for defining variables, timestamps,
-    and delimiters that will be used to parse log messages. It manages the mapping
-    between logical (user-defined) and physical (auto-generated) capture group names.
+    and delimiters that will be used to parse log messages.
 
     Example:
         >>> compiler = SchemaCompiler()
@@ -54,17 +52,8 @@ class SchemaCompiler:
 
         self.timestamps: dict[str, str] = {}
 
-        self.capture_group_name_resolver: GroupNameResolver = GroupNameResolver("CGPrefix")
-
-    def get_capture_group_name_resolver(self) -> GroupNameResolver:
-        """
-        Get the capture group name resolver.
-
-        Returns:
-            GroupNameResolver for mapping logical to physical capture group names
-
-        """
-        return self.capture_group_name_resolver
+        # Track all capture group names
+        self._capture_group_names: set[str] = set()
 
     def add_timestamp(self, name: str, regex: str) -> "SchemaCompiler":
         """
@@ -103,26 +92,19 @@ class SchemaCompiler:
         """
         # Extract capture group names
         converted_regex = regex.replace("(?<", "(?P<")
-        logical_capture_group_names = set(re.compile(converted_regex).groupindex.keys())
-        if len(logical_capture_group_names) < 1:
+        capture_group_names = set(re.compile(converted_regex).groupindex.keys())
+        if len(capture_group_names) < 1:
             msg = (
                 f"Pattern requires at least one named capture group (e.g., (?<name>...). "
                 f"Provided: {regex}"
             )
             raise ValueError(msg)
 
-        # Replace user-provided logical capture group name in regex pattern with
-        # auto-generated physical capture group name
-        for logical_capture_group_name in logical_capture_group_names:
-            physical_capture_group_name = self.capture_group_name_resolver.create_new_physical_name(
-                logical_capture_group_name
-            )
-            regex = re.sub(
-                rf"\(\?<{logical_capture_group_name}>", f"(?<{physical_capture_group_name}>", regex
-            )
+        # Track all capture group names
+        self._capture_group_names.update(capture_group_names)
 
         # Generate hidden name if needed
-        if hide_var_name_if_named_group_present and logical_capture_group_names:
+        if hide_var_name_if_named_group_present and capture_group_names:
             hidden_name = f"{LOG_SURGEON_HIDDEN_VARIABLE_PREFIX}{self._var_hidden_name_id}"
             self._var_hidden_name_id += 1
             self.var_hidden_names[name] = hidden_name
@@ -132,7 +114,7 @@ class SchemaCompiler:
         self._validate_variable_name(name)
 
         # Create and register variable
-        var = Variable(name, regex, logical_capture_group_names)
+        var = Variable(name, regex, capture_group_names)
         self.vars.append(var)
         self.var_names[name] = var
 
@@ -188,6 +170,16 @@ class SchemaCompiler:
 
         """
         return self.var_names[var_name]
+
+    def get_all_capture_group_names(self) -> set[str]:
+        """
+        Get all capture group names defined in the schema.
+
+        Returns:
+            Set of all capture group names
+
+        """
+        return self._capture_group_names
 
     def compile(self) -> str:
         r"""

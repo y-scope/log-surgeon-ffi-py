@@ -59,12 +59,11 @@ public:
      * `PyReaderParser` object through CPython APIs.
      * @param py_input_stream The input stream. Must be a Python `IO[bytes]` object.
      * @param schema_content The schema definition string for parsing.
-     * @param py_group_name_resolver GroupNameResolver for mapping logical to physical group names.
      * @param debug Whether to enable debug output to stderr.
      * @return true on success.
      * @return false on failure with the relevant Python exception and error set.
      */
-    [[nodiscard]] auto init(PyObject* py_input_stream, char const* schema_content, PyObject* py_group_name_resolver, bool debug) -> bool;
+    [[nodiscard]] auto init(PyObject* py_input_stream, char const* schema_content, bool debug) -> bool;
 
     /**
      * Deserializes the next key value pair log event from the IR stream.
@@ -102,7 +101,6 @@ private:
     PyObject_HEAD;
     bool m_debug{false};
     PyObject* m_py_input_stream{nullptr};
-    PyObject* m_py_group_name_resolver{nullptr};
     std::unique_ptr<log_surgeon::ReaderParser> m_parser;
 };
 }  // namespace log_surgeon_ffi

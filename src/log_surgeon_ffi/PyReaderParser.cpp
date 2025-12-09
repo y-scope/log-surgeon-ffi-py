@@ -29,14 +29,12 @@ PyDoc_STRVAR(
         "Parser for parsing log events using log-surgeon schemas.\n"
         "This class parses unstructured log messages into structured log events "
         "with extracted variables.\n\n"
-        "__init__(self, input_stream, schema_content, group_name_resolver, debug=False)\n\n"
+        "__init__(self, input_stream, schema_content, debug=False)\n\n"
         "Initializes a :class:`ReaderParser` instance with the given inputs.\n\n"
         ":param input_stream: Input stream containing log data.\n"
         ":type input_stream: IO[bytes]\n"
         ":param schema_content: Schema definition string for parsing.\n"
         ":type schema_content: str\n"
-        ":param group_name_resolver: Resolver for mapping logical to physical group names.\n"
-        ":type group_name_resolver: GroupNameResolver\n"
         ":param debug: Whether to enable debug output to stderr (default: False).\n"
         ":type debug: bool\n"
 );
@@ -151,29 +149,25 @@ LOG_SURGEON_FFI_METHOD auto
 PyReaderParser_init(PyReaderParser* self, PyObject* args, PyObject* keywords) -> int {
     static char keyword_input_stream[]{"input_stream"};
     static char keyword_schema_str[]{"schema_contents"};
-    static char keyword_group_name_resolver[]{"group_name_resolver"};
     static char keyword_debug[]{"debug"};
     static char const* keyword_table[]{
             static_cast<char*>(keyword_input_stream),
             static_cast<char*>(keyword_schema_str),
-            static_cast<char*>(keyword_group_name_resolver),
             static_cast<char*>(keyword_debug),
             nullptr
     };
 
     PyObject* py_input_stream{};
     char const* schema_contents{};
-    PyObject* py_group_name_resolver{};
     int debug{0};
     if (false
         == static_cast<bool>(PyArg_ParseTupleAndKeywords(
                 args,
                 keywords,
-                "OsO|p",
+                "Os|p",
                 const_cast<char**>(static_cast<char const**>(keyword_table)),
                 &py_input_stream,
                 &schema_contents,
-                &py_group_name_resolver,
                 &debug
         )))
     {
@@ -181,7 +175,7 @@ PyReaderParser_init(PyReaderParser* self, PyObject* args, PyObject* keywords) ->
         return -1;
     }
 
-    if (false == self->init(py_input_stream, schema_contents, py_group_name_resolver, 1 == debug)) {
+    if (false == self->init(py_input_stream, schema_contents, 1 == debug)) {
         // TODO: do we need to set our own exceptions here?
         return -1;
     }
@@ -259,7 +253,6 @@ auto PyReaderParser::module_level_init(PyObject* py_module) -> bool {
 auto PyReaderParser::init(
         PyObject* py_input_stream,
         char const* schema_content,
-        PyObject* py_group_name_resolver,
         bool debug
 ) -> bool {
     // TODO use try catch + throw a py exception around log surgeon code
@@ -269,10 +262,6 @@ auto PyReaderParser::init(
     m_parser = std::make_unique<log_surgeon::ReaderParser>(
             log_surgeon::SchemaParser::try_schema_string(schema_content)
     );
-
-    // Store the group name resolver and increment its reference count
-    m_py_group_name_resolver = py_group_name_resolver;
-    Py_INCREF(py_group_name_resolver);
 
     return reset_input_stream(py_input_stream);
 
@@ -373,7 +362,6 @@ auto PyReaderParser::reset_input_stream(PyObject* py_input_stream) -> bool {
 
 auto PyReaderParser::dealloc() -> void {
     std::ignore = m_parser.release();
-    Py_XDECREF(m_py_group_name_resolver);
 }
 
 auto PyReaderParser::done() -> bool {
@@ -419,15 +407,6 @@ auto PyReaderParser::parse_next_log_event() -> PyObject* {
     auto const set_log_msg_result{PyObject_SetAttrString(py_log_event, "_log_message", py_log_msg)};
     Py_DECREF(py_log_msg);
     if (-1 == set_log_msg_result) {
-        Py_DECREF(py_log_event);
-        return Py_None;
-    }
-
-    // Set the group name resolver on the log event
-    auto const set_resolver_result{
-            PyObject_SetAttrString(py_log_event, "_group_name_resolver", m_py_group_name_resolver)
-    };
-    if (-1 == set_resolver_result) {
         Py_DECREF(py_log_event);
         return Py_None;
     }

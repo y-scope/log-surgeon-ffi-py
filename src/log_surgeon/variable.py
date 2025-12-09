@@ -11,7 +11,7 @@ class Variable:
     Attributes:
         name: Variable name
         regex: Regular expression pattern
-        capture_group_names: Set of logical capture group names in the pattern
+        capture_group_names: Set of capture group names in the pattern
 
     """
 
@@ -22,7 +22,7 @@ class Variable:
         Args:
             name: Variable name
             regex: Regular expression pattern
-            capture_group_names: Set of logical capture group names
+            capture_group_names: Set of capture group names
 
         """
         self.name = name
