@@ -27,7 +27,7 @@ class SchemaCompiler:
     Example:
         >>> compiler = SchemaCompiler()
         >>> compiler.add_var("metric", r"value=(?<value>\\d+)")
-        >>> compiler.add_timestamp("ts", r"\\d{4}-\\d{2}-\\d{2}")
+        >>> compiler.add_timestamp("ts", r"\\d{4}/\\d{2}/\\d{2}")
         >>> schema = compiler.compile()
 
     """
@@ -190,7 +190,7 @@ class SchemaCompiler:
 
         Example:
             >>> compiler = SchemaCompiler()
-            >>> compiler.add_var("MyVar", r"pattern (?<field>\\w+)")
+            >>> compiler.add_var("MyVar", r"pattern (?<field>[a-zA-Z]+)")
             >>> schema = compiler.compile()
 
         """

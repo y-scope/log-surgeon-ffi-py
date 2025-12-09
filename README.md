@@ -23,6 +23,7 @@
 [**Key concepts**](#key-concepts)
 * [Token-based parsing and delimiters](#token-based-parsing-and-delimiters)
 * [Named capture groups](#named-capture-groups)
+* [Variable priority and ordering](#variable-priority-and-ordering)
 * [Using raw f-strings for regex patterns](#using-raw-f-strings-for-regex-patterns)
 
 [**Reference**](#reference)
@@ -230,6 +231,35 @@ print(f"Cores: {event['cores']}, Memory: {event['memory_gb']}")
 parser.add_var("resource", rf"(?<cores>\d+) core and (?<memory_gb>{PATTERN.FLOAT}) GiB ram")
 ```
 </details>
+
+---
+
+#### Using priority for pattern ordering
+
+When you have both specific and generic patterns, use priority to ensure specific patterns match first:
+
+```python
+from log_surgeon import Parser, PATTERN
+
+log_line = "value:123 pi:3.14159 temp:98.6"
+
+parser = Parser()
+
+# Generic fallback pattern (low priority)
+parser.add_var("generic_num", rf"(?<num>\d+)", priority=-1)
+
+# Specific pattern for floats (higher priority)
+parser.add_var("float_val", rf"(?<float>{PATTERN.FLOAT})", priority=1)
+
+parser.compile()
+event = parser.parse_event(log_line)
+
+print(f"Float: {event['float']}")     # 3.14159 (matched by float_val)
+print(f"Num: {event['num']}")         # 123 (matched by generic_num)
+# Note: 98.6 matched by float_val, not split by generic_num
+```
+
+**Without priority**, the generic `\d+` pattern added first could match "3" and "98" separately before the float pattern tries. **With priority**, the float pattern is tried first, ensuring correct extraction of decimal numbers.
 
 ---
 
@@ -794,6 +824,54 @@ The syntax `(?<name>pattern)` creates a capture group that can be accessed as `e
 
 **Note:** See [Using Raw f-strings](#using-raw-f-strings-for-regex-patterns) for best practices on
 writing regex patterns.
+
+### Variable priority and ordering
+
+Variable order in the schema determines matching precedence. Variables that appear first in the schema take precedence over those that appear later. Use the `priority` parameter to control this ordering:
+
+> **Note:** Timestamps added via `add_timestamp()` always appear first in the schema and cannot be reordered with priority. Priority only controls the ordering of variables added via `add_var()`.
+
+```python
+from log_surgeon import Parser, PATTERN
+
+parser = Parser()
+
+# Timestamps are always first (added via add_timestamp)
+parser.add_timestamp("ts", r"\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}")
+
+# High priority - specific patterns should match first
+parser.add_var("ip_address", rf"(?<ip>{PATTERN.IPV4})", priority=5)
+parser.add_var("specific_id", rf"ID(?<id>\d{{6}})", priority=5)
+
+# Default priority (0) - normal patterns
+parser.add_var("user_id", rf"user=(?<user>[a-zA-Z0-9]+)")
+parser.add_var("status", rf"status=(?<status>[a-z]+)")
+
+# Low priority (negative) - generic fallback patterns
+parser.add_var("generic_float", rf"(?<float>{PATTERN.FLOAT})", priority=-1)
+parser.add_var("generic_int", rf"(?<int>\d+)", priority=-2)
+
+parser.compile()
+```
+
+**How priority works:**
+- **Higher values appear first** in the schema (higher = higher precedence)
+- **Default priority is 0** for normal patterns
+- **Negative values** for generic/fallback patterns (more negative = lower priority)
+- **Same priority** variables maintain insertion order
+
+**Example ordering in compiled schema:**
+```
+[Timestamps always first - added via add_timestamp()]
+priority=5:   ip_address, specific_id (insertion order)
+priority=0:   user_id, status (insertion order)
+priority=-1:  generic_float
+priority=-2:  generic_int (matches last)
+```
+
+**Why this matters:** Without priority control, a generic `\d+` pattern added first could match "192" or specific IDs before your specific patterns get a chance. With priorities, you ensure specific patterns try to match before generic ones.
+
+**Important:** Timestamps (added with `add_timestamp()`) are special anchoring patterns that always appear first in the schema, regardless of priority values.
 
 ### Using raw f-strings for regex patterns
 

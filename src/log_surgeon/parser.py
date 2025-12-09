@@ -81,7 +81,7 @@ class Parser:
             Self for method chaining
 
         Example:
-            >>> parser.add_timestamp("iso8601", r"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}")
+            >>> parser.add_timestamp("iso8601", r"\\d{4}/\\d{2}/\\d{2}T\\d{2}:\\d{2}:\\d{2}")
 
         """
         self._schema_compiler.add_timestamp(name, regex)
