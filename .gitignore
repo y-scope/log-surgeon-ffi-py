@@ -2,6 +2,9 @@
 .venv/
 __pycache__/
 
+# IDE
+.idea/
+
 # Packaging
 build/
 # clp_ffi_py.egg-info
