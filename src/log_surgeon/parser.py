@@ -51,19 +51,22 @@ class Parser:
         self._schema_compiler: SchemaCompiler = SchemaCompiler(delimiters)
         self._enable_debug = False
 
-    def add_var(self, name: str, regex: str) -> Parser:
+    def add_var(self, name: str, regex: str, priority: int = 0) -> Parser:
         """
         Add a variable pattern to the parser's schema.
 
         Args:
             name: Variable name
             regex: Regular expression pattern (supports (?<name>) capture groups)
+            priority: Priority for ordering in schema (higher = appears first).
+                Default is 0. Use negative values for generic patterns (e.g., -1 for int/float).
+                Variables with same priority maintain insertion order.
 
         Returns:
             Self for method chaining
 
         """
-        self._schema_compiler.add_var(name, regex)
+        self._schema_compiler.add_var(name, regex, priority)
         return self
 
     def add_timestamp(self, name: str, regex: str) -> Parser:

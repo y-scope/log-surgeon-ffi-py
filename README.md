@@ -936,9 +936,12 @@ High-level parser for extracting structured data from unstructured log messages.
 
 #### Methods
 
-- `add_var(name: str, regex: str) -> Parser`
+- `add_var(name: str, regex: str, priority: int = 0) -> Parser`
   - Add a variable pattern to the parser's schema
   - Supports named capture groups using `(?<name>)` syntax
+  - `priority`: Controls ordering in schema (higher values appear first, default is 0)
+    - Use negative values for generic patterns (e.g., -1, -2, etc. where more negative = lower priority)
+    - Variables with same priority maintain insertion order
   - Use raw f-strings (`rf"..."`) for regex patterns (see [Using Raw f-strings](#using-raw-f-strings-for-regex-patterns))
   - Returns self for method chaining
 
@@ -1076,8 +1079,11 @@ Compiler for constructing log-surgeon schema definitions.
 
 #### Methods
 
-- `add_var(name: str, regex: str) -> SchemaCompiler`
+- `add_var(name: str, regex: str, priority: int = 0) -> SchemaCompiler`
   - Add a variable pattern to the schema
+  - `priority`: Controls ordering in schema (higher values appear first, default is 0)
+    - Use negative values for generic patterns (e.g., -1, -2, etc. where more negative = lower priority)
+    - Variables with same priority maintain insertion order
   - Returns self for method chaining
 
 - `add_timestamp(name: str, regex: str) -> SchemaCompiler`

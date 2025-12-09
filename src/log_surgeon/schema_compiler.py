@@ -49,6 +49,7 @@ class SchemaCompiler:
         self.var_names: dict[str, Variable] = {}
         self.var_hidden_names: dict[str, str] = {}
         self._var_hidden_name_id: int = 0
+        self._var_insertion_order: int = 0
 
         self.timestamps: dict[str, str] = {}
 
@@ -70,13 +71,16 @@ class SchemaCompiler:
         self.timestamps[name] = regex
         return self
 
-    def add_var(self, name: str, regex: str) -> "SchemaCompiler":
+    def add_var(self, name: str, regex: str, priority: int = 0) -> "SchemaCompiler":
         """
         Add a variable pattern to the schema.
 
         Args:
             name: Variable name
             regex: Regular expression pattern (supports (?<name>) capture groups)
+            priority: Priority for ordering in schema (higher = appears first).
+                Default is 0. Use negative values for generic patterns (e.g., -1 for int/float).
+                Variables with same priority maintain insertion order.
 
         Returns:
             Self for method chaining
@@ -109,7 +113,8 @@ class SchemaCompiler:
         self._validate_variable_name(name)
 
         # Create and register variable
-        var = Variable(name, regex, capture_group_names)
+        var = Variable(name, regex, capture_group_names, priority, self._var_insertion_order)
+        self._var_insertion_order += 1
         self.vars.append(var)
         self.var_names[name] = var
 
@@ -198,7 +203,9 @@ class SchemaCompiler:
             schema_sections.append(f"// schema timestamps\n{timestamp_entries}")
 
         if self.vars:
-            var_entries = "\n".join(f"{var.name}:{var.regex}" for var in self.vars)
+            # Sort by priority (descending), then by insertion order (ascending)
+            sorted_vars = sorted(self.vars, key=lambda v: (-v.priority, v.insertion_order))
+            var_entries = "\n".join(f"{var.name}:{var.regex}" for var in sorted_vars)
             schema_sections.append(f"// schema variables\n{var_entries}")
 
         return "\n\n".join(schema_sections)
