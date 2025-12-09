@@ -70,17 +70,13 @@ class SchemaCompiler:
         self.timestamps[name] = regex
         return self
 
-    def add_var(
-        self, name: str, regex: str, hide_var_name_if_named_group_present: bool = True
-    ) -> "SchemaCompiler":
+    def add_var(self, name: str, regex: str) -> "SchemaCompiler":
         """
         Add a variable pattern to the schema.
 
         Args:
             name: Variable name
             regex: Regular expression pattern (supports (?<name>) capture groups)
-            hide_var_name_if_named_group_present: If True and capture groups exist,
-                hide the variable name from output
 
         Returns:
             Self for method chaining
@@ -103,12 +99,11 @@ class SchemaCompiler:
         # Track all capture group names
         self._capture_group_names.update(capture_group_names)
 
-        # Generate hidden name if needed
-        if hide_var_name_if_named_group_present and capture_group_names:
-            hidden_name = f"{LOG_SURGEON_HIDDEN_VARIABLE_PREFIX}{self._var_hidden_name_id}"
-            self._var_hidden_name_id += 1
-            self.var_hidden_names[name] = hidden_name
-            name = hidden_name
+        # Generate hidden variable name with prefix that will be stripped from log-surgeon output
+        hidden_name = f"{LOG_SURGEON_HIDDEN_VARIABLE_PREFIX}{self._var_hidden_name_id}"
+        self._var_hidden_name_id += 1
+        self.var_hidden_names[name] = hidden_name
+        name = hidden_name
 
         # Validate variable name
         self._validate_variable_name(name)

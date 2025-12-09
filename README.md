@@ -936,7 +936,7 @@ High-level parser for extracting structured data from unstructured log messages.
 
 #### Methods
 
-- `add_var(name: str, regex: str, hide_var_name_if_named_group_present: bool = True) -> Parser`
+- `add_var(name: str, regex: str) -> Parser`
   - Add a variable pattern to the parser's schema
   - Supports named capture groups using `(?<name>)` syntax
   - Use raw f-strings (`rf"..."`) for regex patterns (see [Using Raw f-strings](#using-raw-f-strings-for-regex-patterns))
@@ -1076,7 +1076,7 @@ Compiler for constructing log-surgeon schema definitions.
 
 #### Methods
 
-- `add_var(name: str, regex: str, hide_var_name_if_named_group_present: bool = True) -> SchemaCompiler`
+- `add_var(name: str, regex: str) -> SchemaCompiler`
   - Add a variable pattern to the schema
   - Returns self for method chaining
 

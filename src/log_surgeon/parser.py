@@ -51,23 +51,19 @@ class Parser:
         self._schema_compiler: SchemaCompiler = SchemaCompiler(delimiters)
         self._enable_debug = False
 
-    def add_var(
-        self, name: str, regex: str, hide_var_name_if_named_group_present: bool = True
-    ) -> Parser:
+    def add_var(self, name: str, regex: str) -> Parser:
         """
         Add a variable pattern to the parser's schema.
 
         Args:
             name: Variable name
             regex: Regular expression pattern (supports (?<name>) capture groups)
-            hide_var_name_if_named_group_present: If True and capture groups exist,
-                hide the variable name from output
 
         Returns:
             Self for method chaining
 
         """
-        self._schema_compiler.add_var(name, regex, hide_var_name_if_named_group_present)
+        self._schema_compiler.add_var(name, regex)
         return self
 
     def add_timestamp(self, name: str, regex: str) -> Parser:
