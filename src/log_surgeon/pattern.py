@@ -5,8 +5,7 @@ class PATTERN:
     """
     Collection of common regex patterns for log parsing.
 
-    These patterns are designed for use with log-surgeon and follow log-surgeon's
-    pattern syntax requirements (e.g., using (a)|(b) for alternation, {0,1} for optional).
+    These patterns are designed for use with log-surgeon.
 
     Example:
         >>> from log_surgeon import Parser, PATTERN
@@ -34,12 +33,10 @@ class PATTERN:
     Pattern for a single IPv4 octet (0-255).
 
     Matches valid IPv4 octet values:
-    - 250-255: (25[0-5])
-    - 200-249: (2[0-4][0-9])
-    - 100-199: (1[0-9]{2})
-    - 0-99: ([1-9]{0,1}[0-9])
-
-    Note: Uses log-surgeon alternation syntax with parentheses around each alternative.
+    - 250-255: 25[0-5]
+    - 200-249: 2[0-4][0-9]
+    - 100-199: 1[0-9]{2}
+    - 0-99: [1-9]{0,1}[0-9]
     """
 
     IPV4 = rf"(({IP_OCTET})\.){{3}}{IP_OCTET}"
@@ -242,8 +239,6 @@ class PATTERN:
     Structure:
     - One or more package segments (e.g., "java.util.")
     - Followed by a class name (e.g., "ArrayList")
-
-    Note: Uses parentheses around alternatives per log-surgeon syntax.
     """
 
     JAVA_LOGGING_CODE_LOCATION_HINT = rf"~\[(({LINUX_FILE_NAME})|(\?)):({INT})(\?)\]"

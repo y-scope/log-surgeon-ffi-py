@@ -157,8 +157,7 @@ After installation, follow these steps:
 > Critical differences between token-based parsing and traditional regex behavior:
 > 
 > * `.*` only matches within a single token (not across delimiters)
-> * `abc|def` requires grouping: use `(abc)|(def)` instead
-> * Use `{0,1}` for optional patterns, NOT `?`
+> * Use `?` or `{0,1}` for optional patterns (0 or 1 occurrences)
 > 
 > **Tip:** Use raw f-strings (`rf"..."`) for regex patterns. See 
 > [Using Raw f-strings](#using-raw-f-strings-for-regex-patterns) for more details.
@@ -297,7 +296,7 @@ parser = Parser()
 parser.add_timestamp("TIMESTAMP_SPARK_1_6", rf"\d{{2}}/\d{{2}}/\d{{2}} \d{{2}}:\d{{2}}:\d{{2}}")
 
 # Add variable patterns
-parser.add_var("SYSTEM_LEVEL", rf"(?<level>(INFO)|(WARN)|(ERROR))")
+parser.add_var("SYSTEM_LEVEL", rf"(?<level>INFO|WARN|ERROR)")
 parser.add_var("SPARK_HOST_IP_PORT", rf"(?<spark_host>spark\-{PATTERN.INT})/(?<system_ip>{PATTERN.IPV4}):(?<system_port>{PATTERN.PORT})")
 parser.add_var(
   "SYSTEM_EXCEPTION",
@@ -413,7 +412,7 @@ java.io.IOException: Connection reset by peer
 parser = Parser()
 # REQUIRED: Timestamp acts as contextual anchor to separate individual log events in the stream
 parser.add_timestamp("TIMESTAMP_SPARK_1_6", rf"\d{{2}}/\d{{2}}/\d{{2}} \d{{2}}:\d{{2}}:\d{{2}}")
-parser.add_var("SYSTEM_LEVEL", rf"(?<level>(INFO)|(WARN)|(ERROR))")
+parser.add_var("SYSTEM_LEVEL", rf"(?<level>INFO|WARN|ERROR)")
 parser.add_var("SPARK_APP_NAME", rf"(?<spark_app_name>SparkSQL::{PATTERN.IPV4})")
 parser.add_var("SPARK_HOST_IP_PORT", rf"(?<spark_host>spark\-{PATTERN.INT})/(?<system_ip>{PATTERN.IPV4}):(?<system_port>{PATTERN.PORT})")
 parser.add_var(
@@ -741,61 +740,105 @@ print(event['match'])  # Output: "def ghi"
 **Key Rule:** Character classes like `[a-zA-Z]*`, `[a-z ]*`, or `[\w\s]*` can match across token
 boundaries, but `.*` cannot.
 
-#### Alternation requires grouping
+#### Alternation
 
-**CRITICAL:** Alternation (`|`) works differently in log-surgeon compared to traditional regex
-engines. You **must** use parentheses to group alternatives.
-
-```python
-from log_surgeon import Parser
-
-parser = Parser()
-
-#  WRONG: Without grouping - matches "ab" AND ("c" OR "d") AND "ef"
-parser.add_var("wrong", rf"(?<word>abc|def)")
-# In log-surgeon, this is interpreted as: "ab" + "c|d" + "ef"
-# Matches: "abcef" or "abdef" (NOT "abc" or "def")
-
-#  CORRECT: With grouping - matches "abc" OR "def"
-parser.add_var("correct", rf"(?<word>(abc)|(def))")
-# Matches: "abc" or "def"
-parser.compile()
-```
-
-**In traditional regex engines**, `abc|def` means "abc" OR "def".
-**In log-surgeon**, `abc|def` means "ab" + ("c" OR "d") + "ef".
-
-**Key Rule:** Always use `(abc)|(def)` syntax for alternation to match complete alternatives.
-
-```python
-# More examples:
-parser.add_var("level", rf"(?<level>(ERROR)|(WARN)|(INFO))")  #  Correct
-parser.add_var("status", rf"(?<status>(success)|(failure))")  #  Correct
-parser.add_var("bad", rf"(?<status>success|failure)")         #  Wrong - unexpected behavior
-```
-
-#### Optional patterns
-
-For optional patterns, use `{0,1}` instead of `*`:
+Alternation (`|`) works as expected in log-surgeon, with concatenation binding more tightly than alternation (standard regex precedence).
 
 ```python
 from log_surgeon import Parser
 
 parser = Parser()
 
-#  Avoid using * for optional patterns (matches 0 or more)
-parser.add_var("avoid", rf"(?<level>(ERROR)|(WARN))*")  # Can match empty string or multiple reps
+# Alternation works as expected: matches "abc" OR "def"
+parser.add_var("word", rf"(?<word>abc|def)")
 
-#  Do not use ? for optional patterns
-parser.add_var("avoid2", rf"(?<level>(ERROR)|(WARN))?")  # May not work as expected
+# Log levels: matches "ERROR" OR "WARN" OR "INFO"
+parser.add_var("level", rf"(?<level>ERROR|WARN|INFO)")
 
-#  Use {0,1} for optional patterns (matches 0 or 1)
-parser.add_var("optional", rf"(?<level>(ERROR)|(WARN)){0,1}")  # Matches 0 or 1 occurrence
+# Status values: matches "success" OR "failure"
+parser.add_var("status", rf"(?<status>success|failure)")
+
 parser.compile()
 ```
 
-**Best practice:** Use `{0,1}` for optional elements. Avoid `*` (0 or more) and `?` for optional
-matching.
+You can use parentheses for grouping when needed:
+
+```python
+# Optional prefix with alternation
+parser.add_var("msg", rf"(?<msg>(error|warn): .+)")
+
+# Complex patterns
+parser.add_var("id", rf"(?<id>(user|admin)_\d+)")
+```
+
+#### Optional patterns and quantifiers
+
+log-surgeon supports standard regex quantifiers:
+
+| Quantifier | Meaning |
+|------------|---------|
+| `?` | 0 or 1 (optional) |
+| `*` | 0 or more |
+| `+` | 1 or more |
+| `{n}` | Exactly n |
+| `{n,m}` | Between n and m |
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()
+
+#  Use ? for optional patterns (matches 0 or 1)
+parser.add_var("optional1", rf"(?<level>ERROR|WARN)?")  # Matches 0 or 1 occurrence
+
+#  {0,1} is equivalent to ?
+parser.add_var("optional2", rf"(?<level>ERROR|WARN){0,1}")  # Also matches 0 or 1 occurrence
+
+#  Use * for 0 or more occurrences
+parser.add_var("digits", rf"(?<num>\d*)")  # Matches 0 or more digits
+
+#  Use + for 1 or more occurrences
+parser.add_var("word", rf"(?<word>\w+)")  # Matches 1 or more word characters
+parser.compile()
+```
+
+**Best practice:** Use `?` or `{0,1}` for optional elements (0 or 1 occurrences). Use `*` for 0 or more, and `+` for 1 or more.
+
+#### Regex shorthands
+
+log-surgeon supports common regex character class shorthands:
+
+| Shorthand | Meaning | Equivalent |
+|-----------|---------|------------|
+| `\d` | Digit | `[0-9]` |
+| `\D` | Non-digit | `[^0-9]` |
+| `\s` | Whitespace | `[ \t\n\r\v\f]` |
+| `\S` | Non-whitespace | `[^ \t\n\r\v\f]` |
+| `\w` | Word character | `[a-zA-Z0-9_]` |
+| `\W` | Non-word character | `[^a-zA-Z0-9_]` |
+
+```python
+from log_surgeon import Parser
+
+parser = Parser()
+
+# Using shorthands for cleaner patterns
+parser.add_var("number", rf"(?<num>\d+)")           # Matches digits
+parser.add_var("word", rf"(?<word>\w+)")            # Matches word characters
+parser.add_var("trimmed", rf"(?<text>\S+)")         # Matches non-whitespace
+
+parser.compile()
+```
+
+These shorthands can be used standalone, in character classes, or combined with quantifiers:
+
+```python
+# In character classes
+parser.add_var("alphanumeric", rf"(?<id>[\w-]+)")   # Word chars + hyphen
+
+# Combined with quantifiers
+parser.add_var("optional_num", rf"(?<num>\d+)?")    # Optional digits
+```
 
 You can also explicitly include delimiters in your pattern:
 
@@ -967,10 +1010,6 @@ When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schem
 - Check: Did you forget to call `parser.compile()`?
 - Check: Are your delimiters splitting tokens unexpectedly?
 
- **Alternation not working (abc|def)**
-- Problem: `(?<name>abc|def)` doesn't match "abc" or "def" as expected
-- Solution: Use `(?<name>(abc)|(def))` with explicit grouping
-
  **Pattern works in regex tester but not here**
 - Remember: log-surgeon is token-based, not character-based
 - Traditional regex engines match across entire strings
@@ -982,10 +1021,11 @@ When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schem
 - Solution: Use `rf"..."` (raw f-string) instead of `"..."` or `f"..."`
 - Example: `parser.add_var("digits", rf"(?<num>\d+)")`
 
- **Optional pattern matching incorrectly**
-- Problem: Using `?` or `*` for optional patterns
-- Solution: Use `{0,1}` for optional elements
-- Example: `(?<level>(ERROR)|(WARN)){0,1}` for optional log level
+ **Optional patterns and quantifiers**
+- `?` matches 0 or 1 occurrences (equivalent to `{0,1}`)
+- `*` matches 0 or more occurrences
+- `+` matches 1 or more occurrences
+- Example: `(?<level>ERROR|WARN)?` for optional log level
 
 ---
 
@@ -994,8 +1034,8 @@ When using the fluent API (`Parser.add_var()` and `Parser.compile()`), the schem
 | Task                | Syntax                                       |
 |---------------------|----------------------------------------------|
 | Named capture       | `(?<name>pattern)`                           |
-| Alternation         | `(?<name>(opt1)\|(opt2))` NOT `(opt1\|opt2`) |
-| Optional            | `{0,1}` (NOT `?` or `*`)                     |
+| Alternation         | `(?<name>opt1\|opt2)` or `(opt1)\|(opt2)`    |
+| Optional (0 or 1)   | `?` or `{0,1}`                               |
 | Match across tokens | Use `[a-z ]*` (NOT `.*`)                     |
 | Pattern string      | `rf"..."` (raw f-string recommended)         |
 | Log type            | `.select(["@log_type"])`                     |

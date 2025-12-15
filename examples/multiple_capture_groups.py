@@ -29,7 +29,7 @@ parser = Parser()
 parser.add_timestamp("TIMESTAMP_SPARK_1_6", rf"\d{{2}}/\d{{2}}/\d{{2}} \d{{2}}:\d{{2}}:\d{{2}}")
 
 # Add variable patterns
-parser.add_var("SYSTEM_LEVEL", rf"(?<level>(INFO)|(WARN)|(ERROR))")
+parser.add_var("SYSTEM_LEVEL", rf"(?<level>INFO|WARN|ERROR)")
 parser.add_var(
     "SPARK_HOST_IP_PORT",
     rf"(?<spark_host>spark\-{PATTERN.INT})/(?<system_ip>{PATTERN.IPV4}):(?<system_port>{PATTERN.PORT})",
