@@ -29,6 +29,7 @@ classifiers = [
     "Topic :: System :: Logging",
     "Topic :: System :: Monitoring",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
 ]
 
 [project.optional-dependencies]
@@ -78,6 +79,20 @@ skip = "pp*"
 
 [tool.cibuildwheel.linux]
 archs = ["auto", "aarch64"]
+
+[tool.cibuildwheel.macos]
+archs = ["universal2"]
+
+# macOS 10.15 (Catalina) is the minimum for full C++17 support; 11.0 for better C++20
+# Using 11.0 for Apple Silicon compatibility
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
+
+# For universal2 builds, we need to tell CMake to build for both architectures
+repair-wheel-command = ""
+
+[tool.cibuildwheel.macos.environment]
+MACOSX_DEPLOYMENT_TARGET = "11.0"
+CMAKE_OSX_ARCHITECTURES = "arm64;x86_64"
 
 [tool.mypy]
 strict = true
