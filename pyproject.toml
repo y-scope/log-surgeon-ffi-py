@@ -29,6 +29,7 @@ classifiers = [
     "Topic :: System :: Logging",
     "Topic :: System :: Monitoring",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
 ]
 
 [project.optional-dependencies]
@@ -78,6 +79,17 @@ skip = "pp*"
 
 [tool.cibuildwheel.linux]
 archs = ["auto", "aarch64"]
+
+[tool.cibuildwheel.macos]
+archs = ["universal2"]
+# For universal2 builds, delocate (wheel repair) can cause issues; disable it
+repair-wheel-command = ""
+
+# macOS 11.0 (Big Sur) is required for Apple Silicon native support
+[tool.cibuildwheel.macos.environment]
+MACOSX_DEPLOYMENT_TARGET = "11.0"
+# Tell CMake to build fat binaries for both architectures
+CMAKE_OSX_ARCHITECTURES = "arm64;x86_64"
 
 [tool.mypy]
 strict = true
