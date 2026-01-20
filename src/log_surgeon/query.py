@@ -7,14 +7,15 @@ This module provides the Query class, which offers a fluent interface for:
 - Exporting results to pandas DataFrames or PyArrow Tables
 - Analyzing log types and patterns
 
-The Query class works with Parser instances to transform raw log data into
+The Query class works with Parser or JsonParser instances to transform raw log data into
 structured formats suitable for analysis and data science workflows.
 """
 
 from __future__ import annotations
 
 import io
-from typing import BinaryIO, Callable, TextIO, TYPE_CHECKING
+import json
+from typing import Any, BinaryIO, Callable, TextIO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -24,7 +25,8 @@ if TYPE_CHECKING:
 
     from log_surgeon.log_event import LogEvent
 
-from log_surgeon.parser import Parser  # noqa: TC001 - Parser is used at runtime
+from log_surgeon.json_parser import JsonParser
+from log_surgeon.parser import Parser
 
 try:
     import pandas as pd
@@ -54,6 +56,8 @@ class Query:
     The Query class provides a fluent interface for extracting structured data
     from log files. It supports exporting to pandas DataFrames and PyArrow Tables.
 
+    Works with both Parser (for text logs) and JsonParser (for JSON logs).
+
     Example:
         >>> parser = Parser()
         >>> parser.add_var("metric", r"value=(?<value>\\d+)")
@@ -61,22 +65,30 @@ class Query:
         >>> query = Query(parser).select(["value"]).from_(log_data)
         >>> df = query.to_dataframe()
 
+    Example with JsonParser:
+        >>> json_parser = JsonParser(parser).parse_fields(["message"])
+        >>> query = Query(json_parser).select(["user_id"]).from_(json_data)
+        >>> df = query.to_dataframe()
+
     """
 
-    def __init__(self, parser: Parser) -> None:
+    def __init__(self, parser: Parser | JsonParser) -> None:
         """
         Initialize a query builder.
 
         Args:
-            parser: Configured Parser instance for log parsing
+            parser: Configured Parser or JsonParser instance for log parsing
 
         """
         self.fields: list[str] | None = None
         self.stream: io.StringIO | io.BytesIO | None = None
-        self.parser: Parser = parser
-        self.predicate: Callable[[LogEvent], bool] | None = None
+        self.parser: Parser | JsonParser = parser
+        self.predicate: Callable[[LogEvent], bool] | Callable[[dict[str, Any]], bool] | None = None
+        self._is_json_parser: bool = isinstance(parser, JsonParser)
 
-    def filter(self, predicate: Callable[[LogEvent], bool]) -> Query:
+    def filter(
+        self, predicate: Callable[[LogEvent], bool] | Callable[[dict[str, Any]], bool]
+    ) -> Query:
         """
         Filter log events using a predicate function.
 
@@ -87,14 +99,14 @@ class Query:
             `and`/`or` operators.
 
         Args:
-            predicate: Function that takes a LogEvent and returns True to include it,
-                      False to exclude it from results
+            predicate: Function that takes a LogEvent (for Parser) or dict (for JsonParser)
+                      and returns True to include it, False to exclude it from results
 
         Returns:
             Self for method chaining
 
         Example:
-            >>> # Filter by field value
+            >>> # Filter by field value (Parser)
             >>> query.filter(lambda event: int(event["value"]) > 50)
             >>>
             >>> # Filter by multiple conditions (combine with 'and'/'or')
@@ -107,6 +119,9 @@ class Query:
             ...     except (KeyError, ValueError):
             ...         return False
             >>> query.filter(has_high_cpu)
+            >>>
+            >>> # Filter for JsonParser (predicate receives dict)
+            >>> query.filter(lambda obj: obj.get("level") == "ERROR")
 
         """
         self.predicate = predicate
@@ -119,9 +134,10 @@ class Query:
         Args:
             fields: List of field names to extract. Supports:
                 - Variable names defined in the schema (e.g., "user_id", "value")
-                - "*" to select all variables defined in the schema
+                - "*" to select all variables defined in the schema (Parser only)
                 - "@log_type" to include the generated log type (template)
                 - "@log_message" to include the original log message
+                - For JsonParser: any field from the JSON output (including nested paths)
 
         Returns:
             Self for method chaining
@@ -140,7 +156,8 @@ class Query:
             >>> query.select(["@log_type", "@log_message", "*"])
 
         """
-        if "*" in fields:
+        if "*" in fields and not self._is_json_parser:
+            assert isinstance(self.parser, Parser)
             fields = list(self.parser.get_vars())
 
         self.fields = fields
@@ -306,22 +323,57 @@ class Query:
         rows: list[list[str]] = []
         assert self.stream is not None
         assert self.fields is not None
-        for event in self.parser.parse(self.stream):
-            # Apply filter predicate if set
-            if self.predicate is not None and not self.predicate(event):
-                continue
 
-            rows.append(
-                [
-                    event.get_log_type()
-                    if field == "@log_type"
-                    else event.get_log_message()
-                    if field == "@log_message"
-                    else event.get_capture_group_str_representation(field)
-                    for field in self.fields
-                ]
-            )
+        if self._is_json_parser:
+            # Handle JsonParser output (dict objects)
+            assert isinstance(self.parser, JsonParser)
+            for obj in self.parser.parse(self.stream):
+                # Apply filter predicate if set
+                if self.predicate is not None and not self.predicate(obj):
+                    continue
+
+                rows.append([self._get_json_field_value(obj, field) for field in self.fields])
+        else:
+            # Handle Parser output (LogEvent objects)
+            assert isinstance(self.parser, Parser)
+            for event in self.parser.parse(self.stream):
+                # Apply filter predicate if set
+                if self.predicate is not None and not self.predicate(event):
+                    continue
+
+                rows.append(
+                    [
+                        event.get_log_type()
+                        if field == "@log_type"
+                        else event.get_log_message()
+                        if field == "@log_message"
+                        else event.get_capture_group_str_representation(field)
+                        for field in self.fields
+                    ]
+                )
         return rows
+
+    def _get_json_field_value(self, obj: dict[str, Any], field: str) -> str:
+        """
+        Get a field value from a JSON object, supporting dot-notation and nested keys.
+
+        Args:
+            obj: JSON dictionary to extract from
+            field: Field name or dot-notation path (e.g., "extracted.user_id")
+
+        Returns:
+            String representation of the field value
+
+        """
+        # Handle dot notation for nested access
+        parts = field.split(".")
+        current: Any = obj
+        for part in parts:
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                return "None"
+        return str(current) if current is not None else "None"
 
     def get_log_types(self) -> Generator[str, None, None]:
         """
@@ -329,6 +381,10 @@ class Query:
 
         Yields log types in the order they are first encountered.
         If a filter predicate is set, only events matching the filter are included.
+
+        Note:
+            For JsonParser, this returns log types from the "extracted.@log_type" field
+            if the JsonParser was configured with include_log_type(True).
 
         Yields:
             Unique log type strings (templates) from parsed events
@@ -343,21 +399,37 @@ class Query:
         """
         assert self.stream is not None
         seen_log_types: set[str] = set()
-        for event in self.parser.parse(self.stream):
-            # Apply filter predicate if set
-            if self.predicate is not None and not self.predicate(event):
-                continue
 
-            log_type = event.get_log_type()
-            if log_type not in seen_log_types:
-                seen_log_types.add(log_type)
-                yield log_type
+        if self._is_json_parser:
+            assert isinstance(self.parser, JsonParser)
+            for obj in self.parser.parse(self.stream):
+                if self.predicate is not None and not self.predicate(obj):
+                    continue
+                # Get log type from extracted data
+                extracted = obj.get("extracted", {})
+                log_type = extracted.get("@log_type")
+                if log_type and log_type not in seen_log_types:
+                    seen_log_types.add(log_type)
+                    yield log_type
+        else:
+            assert isinstance(self.parser, Parser)
+            for event in self.parser.parse(self.stream):
+                if self.predicate is not None and not self.predicate(event):
+                    continue
+                log_type = event.get_log_type()
+                if log_type not in seen_log_types:
+                    seen_log_types.add(log_type)
+                    yield log_type
 
     def get_log_type_counts(self) -> dict[str, int]:
         """
         Get count of occurrences for each unique log type.
 
         If a filter predicate is set, only events matching the filter are counted.
+
+        Note:
+            For JsonParser, this counts log types from the "extracted.@log_type" field
+            if the JsonParser was configured with include_log_type(True).
 
         Returns:
             Dictionary mapping log types to their occurrence counts
@@ -373,13 +445,23 @@ class Query:
         """
         assert self.stream is not None
         log_type_counts: dict[str, int] = {}
-        for event in self.parser.parse(self.stream):
-            # Apply filter predicate if set
-            if self.predicate is not None and not self.predicate(event):
-                continue
 
-            log_type = event.get_log_type()
-            log_type_counts[log_type] = log_type_counts.get(log_type, 0) + 1
+        if self._is_json_parser:
+            assert isinstance(self.parser, JsonParser)
+            for obj in self.parser.parse(self.stream):
+                if self.predicate is not None and not self.predicate(obj):
+                    continue
+                extracted = obj.get("extracted", {})
+                log_type = extracted.get("@log_type")
+                if log_type:
+                    log_type_counts[log_type] = log_type_counts.get(log_type, 0) + 1
+        else:
+            assert isinstance(self.parser, Parser)
+            for event in self.parser.parse(self.stream):
+                if self.predicate is not None and not self.predicate(event):
+                    continue
+                log_type = event.get_log_type()
+                log_type_counts[log_type] = log_type_counts.get(log_type, 0) + 1
         return log_type_counts
 
     def get_log_type_with_sample(self, sample_size: int = 3) -> dict[str, list[str]]:
@@ -389,6 +471,11 @@ class Query:
         Collects up to `sample_size` example messages for each log type encountered.
         Useful for understanding what actual log messages match each template.
         If a filter predicate is set, only events matching the filter are sampled.
+
+        Note:
+            For JsonParser, this collects samples from the "extracted.@log_type" field
+            if the JsonParser was configured with include_log_type(True). The sample
+            will be the JSON string representation of the object.
 
         Args:
             sample_size: Maximum number of sample messages to collect per log type.
@@ -411,17 +498,49 @@ class Query:
         """
         assert self.stream is not None
         log_type_samples: dict[str, list[str]] = {}
-        for event in self.parser.parse(self.stream):
-            # Apply filter predicate if set
-            if self.predicate is not None and not self.predicate(event):
-                continue
 
-            log_type = event.get_log_type()
-
-            # Initialize list for new log types or append if under sample size
-            if log_type not in log_type_samples:
-                log_type_samples[log_type] = [event.get_log_message()]
-            elif len(log_type_samples[log_type]) < sample_size:
-                log_type_samples[log_type].append(event.get_log_message())
+        if self._is_json_parser:
+            self._collect_json_samples(log_type_samples, sample_size)
+        else:
+            self._collect_parser_samples(log_type_samples, sample_size)
 
         return log_type_samples
+
+    def _collect_json_samples(
+        self, log_type_samples: dict[str, list[str]], sample_size: int
+    ) -> None:
+        """Collect log type samples from JsonParser output."""
+        assert isinstance(self.parser, JsonParser)
+        assert self.stream is not None
+        for obj in self.parser.parse(self.stream):
+            if self.predicate is not None and not self.predicate(obj):
+                continue
+            extracted = obj.get("extracted", {})
+            log_type = extracted.get("@log_type")
+            if log_type:
+                self._add_sample(log_type_samples, log_type, json.dumps(obj), sample_size)
+
+    def _collect_parser_samples(
+        self, log_type_samples: dict[str, list[str]], sample_size: int
+    ) -> None:
+        """Collect log type samples from Parser output."""
+        assert isinstance(self.parser, Parser)
+        assert self.stream is not None
+        for event in self.parser.parse(self.stream):
+            if self.predicate is not None and not self.predicate(event):
+                continue
+            log_type = event.get_log_type()
+            self._add_sample(log_type_samples, log_type, event.get_log_message(), sample_size)
+
+    def _add_sample(
+        self,
+        log_type_samples: dict[str, list[str]],
+        log_type: str,
+        sample: str,
+        sample_size: int,
+    ) -> None:
+        """Add a sample to the log type samples dict if under the limit."""
+        if log_type not in log_type_samples:
+            log_type_samples[log_type] = [sample]
+        elif len(log_type_samples[log_type]) < sample_size:
+            log_type_samples[log_type].append(sample)

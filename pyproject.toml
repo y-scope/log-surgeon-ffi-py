@@ -120,8 +120,16 @@ isort.order-by-type = false
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
+    "ANN",  # Don't require type annotations for test functions
+    "PLR2004",  # Allow magic values in test assertions
     "S101",  # Allow usage of pytest `assert`
     "TC003",  # Ignore performance overhead of imports only used for type checking
+]
+"examples/**" = [
+    "ANN",  # Don't require type annotations in examples
+    "E501",  # Allow long lines in examples for readability
+    "INP001",  # Examples don't need __init__.py
+    "T201",  # Allow print statements in examples
 ]
 
 [tool.ruff.format]

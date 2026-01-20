@@ -11,6 +11,7 @@ python examples/basic_parsing.py
 python examples/multiple_capture_groups.py
 python examples/export_to_dataframe.py
 python examples/filtering_events.py
+python examples/json_log_parsing.py
 ```
 
 Or from the project root:
@@ -20,6 +21,7 @@ python -m examples.basic_parsing
 python -m examples.multiple_capture_groups
 python -m examples.export_to_dataframe
 python -m examples.filtering_events
+python -m examples.json_log_parsing
 ```
 
 ## Examples
@@ -36,6 +38,16 @@ python -m examples.filtering_events
   - Demonstrates timestamp-based event separation
   - Extracts scalar fields (level, IP, port) and array fields (stack traces)
   - Shows automatic aggregation of repeated capture groups
+
+### JSON Parser Examples
+
+- **`json_log_parsing.py`** - Parse JSON-formatted logs
+  - Extract variables from JSON string fields
+  - Demonstrates all conflict resolution strategies (NEST, PREFIX, OVERWRITE, RAISE)
+  - Nested field access with dot-notation
+  - NDJSON and JSON array format support
+  - Integration with Query for DataFrame export
+  - Default behavior (all string fields) and target field selection
 
 ### Query Examples
 
