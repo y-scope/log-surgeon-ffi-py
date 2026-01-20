@@ -1519,6 +1519,74 @@ task deps:install-all
 pip install -e .
 ```
 
+### macOS Development Setup
+
+On macOS, you'll need to install CMake and set up a virtual environment due to externally-managed Python installations (Python 3.14+).
+
+#### Step 1: Install CMake
+
+```bash
+# Install CMake via Homebrew
+brew install cmake
+```
+
+**Note:** The build system now supports macOS BSD tar natively. GNU tar (`gtar`) is optional and not required.
+
+#### Step 2: Set up a virtual environment
+
+macOS Python from Homebrew is externally managed and requires using a virtual environment:
+
+```bash
+# Create a virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+source venv/bin/activate
+
+# Upgrade pip
+pip install --upgrade pip
+```
+
+#### Step 3: Install dependencies and build
+
+```bash
+# Clone the repository with submodules
+git clone --recursive https://github.com/y-scope/log-surgeon-ffi-py.git
+cd log-surgeon-ffi-py
+
+# Install taskfile (dependency manager)
+sh -c "$(curl -sSL https://taskfile.dev/install.sh)" -- -d
+export PATH="$PWD/bin:$PATH"
+
+# Install C++ dependencies (log-surgeon, fmt, Microsoft.GSL)
+task deps:install-all
+
+# Install in editable mode for development
+pip install -e .
+```
+
+#### Step 4: Verify installation
+
+```bash
+python -c "from log_surgeon import Parser; print('Installation successful!')"
+```
+
+#### Building a wheel on macOS
+
+```bash
+# Ensure virtual environment is activated
+source venv/bin/activate
+
+# Build a wheel for your current Python version
+pip wheel . --no-deps -w dist/
+
+# Install the wheel
+pip install dist/*.whl
+
+# Verify
+python -c "from log_surgeon import Parser; print('Success!')"
+```
+
 ### Building a wheel
 
 ```bash
