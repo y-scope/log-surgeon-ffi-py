@@ -35,7 +35,7 @@ values with placeholders, enabling pattern-based log analysis.
 ### When to use `log-surgeon`
 
 **Good fit**
-* Large-scale log processing (millions of lines)
+* Large-scale log processing
 * Extracting structured data from semi-structured logs
 * Generating log templates for analytics
 * Multi-line log events (stack traces, JSON dumps)
