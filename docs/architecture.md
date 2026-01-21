@@ -1,0 +1,324 @@
+# Architecture
+
+This document describes the internal architecture of `log-surgeon-ffi`.
+
+## Overview
+
+`log-surgeon-ffi` is a Python wrapper around the high-performance C++ [`log-surgeon`](https://github.com/y-scope/log-surgeon) library. The architecture follows a layered design with a clear FFI (Foreign Function Interface) boundary.
+
+```mermaid
+flowchart TB
+    subgraph UserCode["User Code"]
+        App["Application"]
+    end
+
+    subgraph PythonAPI["Python API Layer"]
+        Parser["Parser"]
+        JsonParser["JsonParser"]
+        Query["Query"]
+    end
+
+    subgraph PythonInternal["Python Internals"]
+        SchemaCompiler["SchemaCompiler"]
+        LogEvent["LogEvent"]
+        PATTERN["PATTERN"]
+        Variable["Variable"]
+    end
+
+    subgraph FFI["FFI Bridge (C++ Extension)"]
+        PyReaderParser["PyReaderParser"]
+    end
+
+    subgraph CPP["C++ Library"]
+        ReaderParser["log_surgeon::ReaderParser"]
+        DFA["DFA Engine"]
+    end
+
+    App --> Parser
+    App --> JsonParser
+    App --> Query
+
+    Parser --> SchemaCompiler
+    Parser --> PyReaderParser
+    Parser --> PATTERN
+    SchemaCompiler --> Variable
+
+    JsonParser --> Parser
+
+    Query --> Parser
+    Query --> JsonParser
+
+    PyReaderParser --> LogEvent
+    PyReaderParser --> ReaderParser
+    ReaderParser --> DFA
+```
+
+## Component Layers
+
+### 1. Python API Layer
+
+The public interface that users interact with:
+
+| Component | Purpose |
+|-----------|---------|
+| **Parser** | High-level interface for extracting structured data from text logs |
+| **JsonParser** | Wrapper for parsing JSON-formatted logs (NDJSON or JSON arrays) |
+| **Query** | Fluent builder for filtering, selecting, and exporting to DataFrames |
+
+### 2. Python Internals
+
+Supporting classes that power the API:
+
+| Component | Purpose |
+|-----------|---------|
+| **SchemaCompiler** | Builds log-surgeon schema definitions from `add_var()` calls |
+| **LogEvent** | Represents a parsed log event with extracted variables |
+| **PATTERN** | Pre-built regex patterns for common log elements (IP, UUID, etc.) |
+| **Variable** | Data class representing a schema variable definition |
+
+### 3. FFI Bridge
+
+The C++ extension module that bridges Python and C++:
+
+| Component | Purpose |
+|-----------|---------|
+| **PyReaderParser** | Python wrapper around `log_surgeon::ReaderParser` |
+
+### 4. C++ Library
+
+The core parsing engine from [log-surgeon](https://github.com/y-scope/log-surgeon):
+
+| Component | Purpose |
+|-----------|---------|
+| **ReaderParser** | Stream-based log parser with DFA matching |
+| **DFA Engine** | Deterministic finite automaton for efficient pattern matching |
+
+## Data Flow
+
+```mermaid
+flowchart LR
+    subgraph Setup["Setup Phase"]
+        direction TB
+        AddVar["parser.add_var()"]
+        Compile["parser.compile()"]
+        Schema["Schema String"]
+
+        AddVar --> Compile --> Schema
+    end
+
+    subgraph Parse["Parse Phase"]
+        direction TB
+        Input["Input Stream"]
+        CPP["C++ DFA Engine"]
+        Events["LogEvent Objects"]
+
+        Input --> CPP --> Events
+    end
+
+    subgraph Export["Export Phase (Optional)"]
+        direction TB
+        Filter["query.filter()"]
+        Select["query.select()"]
+        Output["DataFrame / Arrow"]
+
+        Filter --> Select --> Output
+    end
+
+    Setup --> Parse --> Export
+```
+
+### Detailed Flow
+
+1. **Schema Definition**
+   ```python
+   parser = Parser()
+   parser.add_var("metric", rf"value=(?<value>{PATTERN.INT})")
+   ```
+   - `SchemaCompiler` collects variable patterns
+   - Extracts capture group names from regex
+   - Tracks priority for ordering
+
+2. **Compilation**
+   ```python
+   parser.compile()
+   ```
+   - `SchemaCompiler.compile()` generates schema string
+   - Schema passed to C++ `ReaderParser`
+   - C++ builds DFA for efficient matching
+
+3. **Parsing**
+   ```python
+   for event in parser.parse(log_file):
+       print(event["value"])
+   ```
+   - Input streamed to C++ engine
+   - DFA matches patterns in single pass
+   - `LogEvent` objects returned with extracted data
+
+4. **Export (Optional)**
+   ```python
+   df = Query(parser).select(["*"]).from_(log_file).to_dataframe()
+   ```
+   - `Query` wraps parsing with filtering/selection
+   - Exports to pandas DataFrame or PyArrow Table
+
+## Key Classes
+
+### Parser
+
+```mermaid
+classDiagram
+    class Parser {
+        -SchemaCompiler _schema_compiler
+        -ReaderParser _reader_parser
+        -set~str~ _capture_group_names
+        +add_var(name, regex, priority) Parser
+        +add_timestamp(name, regex) Parser
+        +compile(enable_debug_logs) None
+        +parse(input) Generator~LogEvent~
+        +parse_event(payload) LogEvent
+        +get_vars() set~str~
+    }
+
+    class SchemaCompiler {
+        -str _delimiters
+        -list~Variable~ _timestamps
+        -list~Variable~ _variables
+        +add_var(name, regex, priority) SchemaCompiler
+        +add_timestamp(name, regex) SchemaCompiler
+        +compile() str
+    }
+
+    class LogEvent {
+        -str _log_message
+        -dict _var_dict
+        +get_log_message() str
+        +get_log_type() str
+        +get_capture_group(name) str|list
+        +get_resolved_dict() dict
+    }
+
+    Parser --> SchemaCompiler : uses
+    Parser ..> LogEvent : yields
+```
+
+### JsonParser
+
+```mermaid
+classDiagram
+    class JsonParser {
+        -Parser _parser
+        -list~str~ _target_fields
+        -ConflictStrategy _conflict_strategy
+        -str _prefix
+        -str _nest_key
+        -bool _include_log_type
+        +target_fields(fields) JsonParser
+        +on_conflict(strategy, prefix, key) JsonParser
+        +include_log_type(include) JsonParser
+        +parse(source) Generator~dict~
+        +parse_one(json_line) dict
+    }
+
+    class ConflictStrategy {
+        <<enumeration>>
+        NEST
+        PREFIX
+        OVERWRITE
+        RAISE
+    }
+
+    JsonParser --> Parser : wraps
+    JsonParser --> ConflictStrategy : uses
+```
+
+### Query
+
+```mermaid
+classDiagram
+    class Query {
+        -Parser|JsonParser _parser
+        -list~str~ _fields
+        -Callable _predicate
+        -IO _input
+        +select(fields) Query
+        +from_(input) Query
+        +filter(predicate) Query
+        +to_dataframe() DataFrame
+        +to_arrow() Table
+        +get_rows() list
+        +get_log_types() Generator~str~
+    }
+
+    Query --> Parser : uses
+    Query --> JsonParser : uses
+```
+
+## FFI Implementation
+
+The FFI bridge (`src/log_surgeon_ffi/`) consists of:
+
+| File | Purpose |
+|------|---------|
+| `log_surgeon_ffi.cpp` | Python module initialization (`PyInit_log_surgeon_ffi`) |
+| `PyReaderParser.cpp/hpp` | Python wrapper for C++ `ReaderParser` |
+| `PyObjectCast.hpp` | Safe casting between Python and C++ types |
+| `PyObjectUtils.hpp` | Python object utility functions |
+| `PyExceptionContext.hpp` | Exception handling and error conversion |
+
+The C++ code:
+1. Receives schema string from Python
+2. Wraps `log_surgeon::ReaderParser` with Python-compatible I/O
+3. Returns `LogEvent` objects populated with extracted data
+4. Handles Python exceptions and error propagation
+
+## Design Decisions
+
+### Why FFI instead of Pure Python?
+
+- **Performance**: C++ DFA engine is significantly faster than Python regex
+- **Single-pass parsing**: DFA matches all patterns simultaneously
+- **Memory efficiency**: Stream processing without loading entire file
+
+### Why Schema Compilation?
+
+- **DFA construction**: Patterns must be compiled into state machine
+- **Optimization**: Combined matching is faster than sequential regex
+- **Validation**: Catch pattern errors before parsing begins
+
+### Why Delimiter-Based Matching?
+
+- **Log structure alignment**: Logs naturally have delimited fields
+- **Predictable behavior**: `.` stops at natural boundaries
+- **Efficient log types**: Templates align with log structure
+
+## Roadmap
+
+A Rust re-implementation of the core parsing engine is in development, which will bring:
+
+- **Improved performance** through Rust's zero-cost abstractions
+- **Memory safety** guarantees without garbage collection overhead
+- **Enhanced features** including additional regex capabilities
+- **Simplified builds** with easier cross-platform compilation via PyO3
+
+The Python API will remain stable—only the underlying engine will change.
+
+## Directory Structure
+
+```
+src/
+├── log_surgeon/              # Python package
+│   ├── __init__.py           # Public exports
+│   ├── parser.py             # Parser class
+│   ├── json_parser.py        # JsonParser class
+│   ├── query.py              # Query builder
+│   ├── log_event.py          # LogEvent class
+│   ├── schema_compiler.py    # Schema builder
+│   ├── pattern.py            # PATTERN constants
+│   └── variable.py           # Variable data class
+│
+└── log_surgeon_ffi/          # C++ extension
+    ├── log_surgeon_ffi.cpp   # Module init
+    ├── PyReaderParser.cpp    # Parser wrapper
+    └── *.hpp                  # Headers
+```
