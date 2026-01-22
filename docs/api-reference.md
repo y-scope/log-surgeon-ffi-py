@@ -1,16 +1,6 @@
 # API Reference
 
-## Quick Reference
-
-| Task                | Syntax                                       |
-|---------------------|----------------------------------------------|
-| Named capture       | `(?<name>pattern)`                           |
-| Alternation         | `(?<name>opt1\|opt2)` or `(opt1)\|(opt2)`    |
-| Optional (0 or 1)   | `?` or `{0,1}`                               |
-| Match across delimiters | Use `[a-z ]*` (NOT `.*`)                 |
-| Pattern string      | `rf"..."` (raw f-string recommended)         |
-| Log type            | `.select(["@log_type"])`                     |
-| Original message    | `.select(["@log_message"])`                  |
+For key concepts like delimiter-based matching, capture groups, and pattern syntax, see [Key Concepts](key-concepts.md).
 
 ## Parser
 
