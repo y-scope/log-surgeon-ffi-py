@@ -69,7 +69,7 @@ python -c "from log_surgeon import Parser; print('Installation successful.')"
 > This means `.*` stops at delimiter characters. To match text containing delimiters,
 > use explicit character classes like `[a-zA-Z ]*`.
 >
-> See [Key Concepts](docs/key-concepts.md) for details.
+> See [Key Concepts](https://y-scope.github.io/log-surgeon-ffi-py/key-concepts/) for details.
 
 **Tip:** Use raw f-strings (`rf"..."`) for regex patterns to avoid escaping issues.
 
@@ -114,12 +114,12 @@ See [`examples/`](examples/) for runnable scripts:
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [**Key Concepts**](docs/key-concepts.md) | Delimiter-based matching, capture groups, priority, raw f-strings |
-| [**API Reference**](docs/api-reference.md) | Parser, Query, JsonParser, PATTERN constants |
-| [**Architecture**](docs/architecture.md) | Internal design, component layers, data flow diagrams |
-| [**Development**](docs/development.md) | Building from source, testing, linting |
+**[Full Documentation](https://y-scope.github.io/log-surgeon-ffi-py/)** — includes:
+
+- [Key Concepts](https://y-scope.github.io/log-surgeon-ffi-py/key-concepts/) — Delimiter-based matching, capture groups, priority.
+- [API Reference](https://y-scope.github.io/log-surgeon-ffi-py/api-reference/) — Parser, Query, JsonParser, PATTERN constants.
+- [Architecture](https://y-scope.github.io/log-surgeon-ffi-py/architecture/) — Internal design, component layers, data flow.
+- [Development](https://y-scope.github.io/log-surgeon-ffi-py/development/) — Building from source, testing, linting.
 
 ---
 
@@ -144,6 +144,7 @@ Apache License 2.0 - See [LICENSE](LICENSE) for details.
 
 ## Links
 
+- [Documentation](https://y-scope.github.io/log-surgeon-ffi-py/)
 - [Homepage](https://github.com/y-scope/log-surgeon-ffi-py)
 - [Bug Tracker](https://github.com/y-scope/log-surgeon-ffi-py/issues)
 - [log-surgeon C++ library](https://github.com/y-scope/log-surgeon)
