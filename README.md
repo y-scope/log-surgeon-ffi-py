@@ -123,6 +123,19 @@ See [`examples/`](examples/) for runnable scripts:
 
 ---
 
+## Roadmap
+
+A Rust re-implementation of the core parsing engine is in development, which will bring:
+
+- Improved performance through Rust's zero-cost abstractions.
+- Memory safety guarantees without garbage collection overhead.
+- Enhanced features including additional regex capabilities.
+- Simplified builds with easier cross-platform compilation via PyO3.
+
+The Python API will remain stable—only the underlying engine will change.
+
+---
+
 ## License
 
 Apache License 2.0 - See [LICENSE](LICENSE) for details.
