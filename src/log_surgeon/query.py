@@ -59,16 +59,20 @@ class Query:
     Works with both Parser (for text logs) and JsonParser (for JSON logs).
 
     Example:
-        >>> parser = Parser()
-        >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-        >>> parser.compile()
-        >>> query = Query(parser).select(["value"]).from_(log_data)
-        >>> df = query.to_dataframe()
+        ```python
+        parser = Parser()
+        parser.add_var("metric", r"value=(?<value>\\d+)")
+        parser.compile()
+        query = Query(parser).select(["value"]).from_(log_data)
+        df = query.to_dataframe()
+        ```
 
     Example with JsonParser:
-        >>> json_parser = JsonParser(parser).parse_fields(["message"])
-        >>> query = Query(json_parser).select(["user_id"]).from_(json_data)
-        >>> df = query.to_dataframe()
+        ```python
+        json_parser = JsonParser(parser).parse_fields(["message"])
+        query = Query(json_parser).select(["user_id"]).from_(json_data)
+        df = query.to_dataframe()
+        ```
 
     """
 
@@ -106,22 +110,24 @@ class Query:
             Self for method chaining
 
         Example:
-            >>> # Filter by field value (Parser)
-            >>> query.filter(lambda event: int(event["value"]) > 50)
-            >>>
-            >>> # Filter by multiple conditions (combine with 'and'/'or')
-            >>> query.filter(lambda event: event["level"] == "ERROR" and "exception" in str(event))
-            >>>
-            >>> # Filter with try/catch for missing fields
-            >>> def has_high_cpu(event):
-            ...     try:
-            ...         return int(event["cpu_usage"]) > 80
-            ...     except (KeyError, ValueError):
-            ...         return False
-            >>> query.filter(has_high_cpu)
-            >>>
-            >>> # Filter for JsonParser (predicate receives dict)
-            >>> query.filter(lambda obj: obj.get("level") == "ERROR")
+            ```python
+            # Filter by field value (Parser)
+            query.filter(lambda event: int(event["value"]) > 50)
+
+            # Filter by multiple conditions (combine with 'and'/'or')
+            query.filter(lambda event: event["level"] == "ERROR" and "exception" in str(event))
+
+            # Filter with try/catch for missing fields
+            def has_high_cpu(event):
+                try:
+                    return int(event["cpu_usage"]) > 80
+                except (KeyError, ValueError):
+                    return False
+            query.filter(has_high_cpu)
+
+            # Filter for JsonParser (predicate receives dict)
+            query.filter(lambda obj: obj.get("level") == "ERROR")
+            ```
 
         """
         self.predicate = predicate
@@ -143,17 +149,19 @@ class Query:
             Self for method chaining
 
         Example:
-            >>> # Select specific variables
-            >>> query.select(["user_id", "value"])
-            >>>
-            >>> # Select all variables
-            >>> query.select(["*"])
-            >>>
-            >>> # Include log type and message with variables
-            >>> query.select(["@log_type", "@log_message", "user_id", "value"])
-            >>>
-            >>> # Expand all variables and include metadata
-            >>> query.select(["@log_type", "@log_message", "*"])
+            ```python
+            # Select specific variables
+            query.select(["user_id", "value"])
+
+            # Select all variables
+            query.select(["*"])
+
+            # Include log type and message with variables
+            query.select(["@log_type", "@log_message", "user_id", "value"])
+
+            # Expand all variables and include metadata
+            query.select(["@log_type", "@log_message", "*"])
+            ```
 
         """
         if "*" in fields and not self._is_json_parser:
@@ -200,11 +208,14 @@ class Query:
             TypeError: If source type is not supported
 
         Example:
-            >>> query = Query(parser).select(["value"])
-            >>> query.from_("log data here")
-            >>> # Or from file
-            >>> with open("logs.txt", "r") as f:
-            ...     query.from_(f)
+            ```python
+            query = Query(parser).select(["value"])
+            query.from_("log data here")
+
+            # Or from file
+            with open("logs.txt", "r") as f:
+                query.from_(f)
+            ```
 
         """
         # Validate and convert source type
@@ -390,11 +401,13 @@ class Query:
             Unique log type strings (templates) from parsed events
 
         Example:
-            >>> query = Query(parser).from_(log_data)
-            >>> for log_type in query.get_log_types():
-            ...     print(log_type)
-            <timestamp> INFO: Processing <metric>
-            <timestamp> WARN: Error in <component>
+            ```python
+            query = Query(parser).from_(log_data)
+            for log_type in query.get_log_types():
+                print(log_type)
+            # <timestamp> INFO: Processing <metric>
+            # <timestamp> WARN: Error in <component>
+            ```
 
         """
         assert self.stream is not None
@@ -435,12 +448,14 @@ class Query:
             Dictionary mapping log types to their occurrence counts
 
         Example:
-            >>> query = Query(parser).from_(log_data)
-            >>> counts = query.get_log_type_counts()
-            >>> for log_type, count in counts.items():
-            ...     print(f"{count:5d} {log_type}")
-                42 <timestamp> INFO: Processing <metric>
-                 7 <timestamp> WARN: Error in <component>
+            ```python
+            query = Query(parser).from_(log_data)
+            counts = query.get_log_type_counts()
+            for log_type, count in counts.items():
+                print(f"{count:5d} {log_type}")
+            #     42 <timestamp> INFO: Processing <metric>
+            #      7 <timestamp> WARN: Error in <component>
+            ```
 
         """
         assert self.stream is not None
@@ -485,15 +500,17 @@ class Query:
             Dictionary mapping log types to lists of sample log messages
 
         Example:
-            >>> query = Query(parser).from_(log_data)
-            >>> samples = query.get_log_type_with_sample(sample_size=2)
-            >>> for log_type, messages in samples.items():
-            ...     print(f"Log Type: {log_type}")
-            ...     for msg in messages:
-            ...         print(f"  - {msg}")
-            Log Type: <timestamp> INFO: Processing <metric>
-              - 2024-01-01 INFO: Processing value=42
-              - 2024-01-01 INFO: Processing value=100
+            ```python
+            query = Query(parser).from_(log_data)
+            samples = query.get_log_type_with_sample(sample_size=2)
+            for log_type, messages in samples.items():
+                print(f"Log Type: {log_type}")
+                for msg in messages:
+                    print(f"  - {msg}")
+            # Log Type: <timestamp> INFO: Processing <metric>
+            #   - 2024-01-01 INFO: Processing value=42
+            #   - 2024-01-01 INFO: Processing value=100
+            ```
 
         """
         assert self.stream is not None

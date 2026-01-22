@@ -27,12 +27,13 @@ class Parser:
     (using add_var() and compile()) and direct schema loading.
 
     Example:
-        >>> parser = Parser()
-        >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-        >>> parser.compile()
-        >>> event = parser.parse_event("Processing value=42")
-        >>> print(event["value"])
-        42
+        ```python
+        parser = Parser()
+        parser.add_var("metric", r"value=(?<value>\\d+)")
+        parser.compile()
+        event = parser.parse_event("Processing value=42")
+        print(event["value"])  # 42
+        ```
 
     """
 
@@ -81,7 +82,9 @@ class Parser:
             Self for method chaining
 
         Example:
-            >>> parser.add_timestamp("iso8601", r"\\d{4}/\\d{2}/\\d{2}T\\d{2}:\\d{2}:\\d{2}")
+            ```python
+            parser.add_timestamp("iso8601", r"\\d{4}/\\d{2}/\\d{2}T\\d{2}:\\d{2}:\\d{2}")
+            ```
 
         """
         self._schema_compiler.add_timestamp(name, regex)
@@ -102,9 +105,11 @@ class Parser:
             May raise exceptions if schema compilation fails
 
         Example:
-            >>> parser = Parser()
-            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-            >>> parser.compile(enable_debug_logs=True)  # Enable debug mode
+            ```python
+            parser = Parser()
+            parser.add_var("metric", r"value=(?<value>\\d+)")
+            parser.compile(enable_debug_logs=True)  # Enable debug mode
+            ```
 
         """
         self._parser = ReaderParser(
@@ -129,12 +134,13 @@ class Parser:
             RuntimeError: If parser is not initialized with a schema
 
         Example:
-            >>> parser = Parser()
-            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-            >>> parser.compile()
-            >>> event = parser.parse_event("Processing value=42")
-            >>> print(event["value"])
-            42
+            ```python
+            parser = Parser()
+            parser.add_var("metric", r"value=(?<value>\\d+)")
+            parser.compile()
+            event = parser.parse_event("Processing value=42")
+            print(event["value"])  # 42
+            ```
 
         """
         for event in self.parse(payload):
@@ -163,18 +169,20 @@ class Parser:
             TypeError: If source type is not supported
 
         Example:
-            >>> parser = Parser()
-            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-            >>> parser.compile()
-            >>>
-            >>> # Parse from string
-            >>> for event in parser.parse("value=42\\nvalue=100"):
-            ...     print(event["value"])
-            >>>
-            >>> # Parse from file object
-            >>> with open("logs.txt", "r") as f:
-            ...     for event in parser.parse(f):
-            ...         print(event["value"])
+            ```python
+            parser = Parser()
+            parser.add_var("metric", r"value=(?<value>\\d+)")
+            parser.compile()
+
+            # Parse from string
+            for event in parser.parse("value=42\\nvalue=100"):
+                print(event["value"])
+
+            # Parse from file object
+            with open("logs.txt", "r") as f:
+                for event in parser.parse(f):
+                    print(event["value"])
+            ```
 
         """
         self._ensure_initialized()
@@ -219,12 +227,13 @@ class Parser:
             Set of all variable names defined in the schema
 
         Example:
-            >>> parser = Parser()
-            >>> parser.add_var("metric", r"value=(?<value>\\d+)")
-            >>> parser.add_var("status", r"status=(?<status>\\w+)")
-            >>> parser.compile()
-            >>> parser.get_vars()
-            {'value', 'status'}
+            ```python
+            parser = Parser()
+            parser.add_var("metric", r"value=(?<value>\\d+)")
+            parser.add_var("status", r"status=(?<status>\\w+)")
+            parser.compile()
+            parser.get_vars()  # {'value', 'status'}
+            ```
 
         """
         return self._schema_compiler.get_all_capture_group_names()

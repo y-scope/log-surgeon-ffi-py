@@ -25,8 +25,10 @@ class ConflictStrategy(Enum):
         RAISE: Raise KeyError on conflict (for development/testing)
 
     Example:
-        >>> json_parser.on_conflict(ConflictStrategy.NEST, key="extracted")
-        >>> # Result: {"message": "...", "extracted": {"user_id": "123"}}
+        ```python
+        json_parser.on_conflict(ConflictStrategy.NEST, key="extracted")
+        # Result: {"message": "...", "extracted": {"user_id": "123"}}
+        ```
 
     """
 
@@ -51,21 +53,23 @@ class JsonParser:
         booleans, objects, arrays) are skipped during extraction.
 
     Example:
-        >>> from log_surgeon import JsonParser, Parser
-        >>>
-        >>> # Create underlying parser with extraction patterns
-        >>> parser = Parser()
-        >>> parser.add_var("user_info", r"user=(?<user_id>\d+)")
-        >>> parser.compile()
-        >>>
-        >>> # Create JSON parser (defaults to extracting from all string fields)
-        >>> json_parser = JsonParser(parser)
-        >>>
-        >>> # Parse JSON logs
-        >>> input_json = '{"ts": "2024-01-01", "message": "user=123 request"}'
-        >>> result = json_parser.parse_one(input_json)
-        >>> print(result)
-        {'ts': '2024-01-01', 'message': 'user=123 request', 'extracted': {'user_id': '123'}}
+        ```python
+        from log_surgeon import JsonParser, Parser
+
+        # Create underlying parser with extraction patterns
+        parser = Parser()
+        parser.add_var("user_info", r"user=(?<user_id>\d+)")
+        parser.compile()
+
+        # Create JSON parser (defaults to extracting from all string fields)
+        json_parser = JsonParser(parser)
+
+        # Parse JSON logs
+        input_json = '{"ts": "2024-01-01", "message": "user=123 request"}'
+        result = json_parser.parse_one(input_json)
+        print(result)
+        # {'ts': '2024-01-01', 'message': 'user=123 request', 'extracted': {'user_id': '123'}}
+        ```
 
     """
 
@@ -120,19 +124,21 @@ class JsonParser:
             Self for method chaining.
 
         Example:
-            >>> # Default: extracts from all string fields
-            >>> json_parser = JsonParser(parser)
-            >>>
-            >>> # Limit to specific field (string or list)
-            >>> json_parser.target_fields("message")
-            >>> json_parser.target_fields(["message"])
-            >>>
-            >>> # Multiple fields
-            >>> json_parser.target_fields(["message", "context.detail"])
-            >>>
-            >>> # Explicitly target all string fields
-            >>> json_parser.target_fields("*")
-            >>> json_parser.target_fields(["*"])
+            ```python
+            # Default: extracts from all string fields
+            json_parser = JsonParser(parser)
+
+            # Limit to specific field (string or list)
+            json_parser.target_fields("message")
+            json_parser.target_fields(["message"])
+
+            # Multiple fields
+            json_parser.target_fields(["message", "context.detail"])
+
+            # Explicitly target all string fields
+            json_parser.target_fields("*")
+            json_parser.target_fields(["*"])
+            ```
 
         """
         # Normalize input: convert string to list, handle "*"
@@ -171,11 +177,13 @@ class JsonParser:
             Self for method chaining.
 
         Example:
-            >>> # Nest all extracted variables under "extracted" key
-            >>> json_parser.on_conflict(ConflictStrategy.NEST, key="extracted")
-            >>>
-            >>> # Add prefix to extracted variable names
-            >>> json_parser.on_conflict(ConflictStrategy.PREFIX, prefix="parsed_")
+            ```python
+            # Nest all extracted variables under "extracted" key
+            json_parser.on_conflict(ConflictStrategy.NEST, key="extracted")
+
+            # Add prefix to extracted variable names
+            json_parser.on_conflict(ConflictStrategy.PREFIX, prefix="parsed_")
+            ```
 
         """
         self._conflict_strategy = strategy
@@ -225,8 +233,10 @@ class JsonParser:
             TypeError: If the source type is not supported.
 
         Example:
-            >>> for enriched in json_parser.parse(ndjson_input):
-            ...     print(enriched)
+            ```python
+            for enriched in json_parser.parse(ndjson_input):
+                print(enriched)
+            ```
 
         """
         # For strings, use non-streaming approach (already in memory)
@@ -251,9 +261,10 @@ class JsonParser:
             json.JSONDecodeError: If the input is not valid JSON.
 
         Example:
-            >>> result = json_parser.parse_one('{"message": "user=123"}')
-            >>> print(result["extracted"]["user_id"])
-            123
+            ```python
+            result = json_parser.parse_one('{"message": "user=123"}')
+            print(result["extracted"]["user_id"])  # 123
+            ```
 
         """
         obj = json.loads(json_line)
@@ -456,9 +467,10 @@ class JsonParser:
             Field value or None if not found.
 
         Example:
-            >>> obj = {"context": {"message": "hello"}}
-            >>> _get_field_value(obj, "context.message")
-            'hello'
+            ```python
+            obj = {"context": {"message": "hello"}}
+            _get_field_value(obj, "context.message")  # 'hello'
+            ```
 
         """
         # Use cached split or compute and cache

@@ -14,13 +14,12 @@ class LogEvent:
     Variables can be accessed directly using dictionary-style indexing.
 
     Example:
-        >>> event = parser.parse_event("INFO [main] Processing value=42")
-        >>> event.get_log_message()
-        'INFO [main] Processing value=42'
-        >>> event["value"]
-        '42'
-        >>> event.get_log_type()
-        '<timestamp><platform_level> [<platform_thread>] Processing value=<value>'
+        ```python
+        event = parser.parse_event("INFO [main] Processing value=42")
+        event.get_log_message()  # 'INFO [main] Processing value=42'
+        event["value"]  # '42'
+        event.get_log_type()  # '<timestamp><platform_level> [<platform_thread>] Processing value=<value>'
+        ```
 
     """
 
@@ -73,12 +72,11 @@ class LogEvent:
             - Otherwise: list of values
 
         Example:
-            >>> event.get_capture_group("thread")  # Single value
-            'main'
-            >>> event.get_capture_group("thread", raw_output=True)
-            ['main']
-            >>> event.get_capture_group("errors")  # Multiple values
-            ['error1', 'error2']
+            ```python
+            event.get_capture_group("thread")  # Single value: 'main'
+            event.get_capture_group("thread", raw_output=True)  # ['main']
+            event.get_capture_group("errors")  # Multiple values: ['error1', 'error2']
+            ```
 
         """
         # Special case: @LogType returns the log type
@@ -109,10 +107,10 @@ class LogEvent:
             String representation of the capture group value
 
         Example:
-            >>> event.get_capture_group_str_representation("value")
-            '42'
-            >>> event.get_capture_group_str_representation("values", raw_output=True)
-            "['1', '2', '3']"
+            ```python
+            event.get_capture_group_str_representation("value")  # '42'
+            event.get_capture_group_str_representation("values", raw_output=True)  # "['1', '2', '3']"
+            ```
 
         """
         return f"{self.get_capture_group(name, raw_output)}"
@@ -128,10 +126,10 @@ class LogEvent:
             The captured value(s) for the group
 
         Example:
-            >>> event["thread"]
-            'main'
-            >>> event["values"]
-            ['1', '2', '3']
+            ```python
+            event["thread"]  # 'main'
+            event["values"]  # ['1', '2', '3']
+            ```
 
         """
         result = self.get_capture_group(name, raw_output=False)
@@ -153,13 +151,15 @@ class LogEvent:
             - Single-value lists are unwrapped to scalar values
 
         Example:
-            >>> event.get_resolved_dict()
-            {
-                "timestamp": "2024-01-01T10:00:00",
-                "level": "INFO",
-                "thread": "main",
-                "value": "42"
-            }
+            ```python
+            event.get_resolved_dict()
+            # {
+            #     "timestamp": "2024-01-01T10:00:00",
+            #     "level": "INFO",
+            #     "thread": "main",
+            #     "value": "42"
+            # }
+            ```
 
         """
         resolved_dict: dict[str, str | list[str | int | float]] = {}
@@ -189,11 +189,13 @@ class LogEvent:
             Pretty-printed JSON string with all variables
 
         Example:
-            >>> print(event)
-            {
-              "@LogType": "...",
-              "field1": "value1"
-            }
+            ```python
+            print(event)
+            # {
+            #   "@LogType": "...",
+            #   "field1": "value1"
+            # }
+            ```
 
         """
         return json.dumps(self.get_resolved_dict(), indent=2)
