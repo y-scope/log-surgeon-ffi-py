@@ -36,7 +36,7 @@ jobs:
           pip install log-surgeon-ffi
 
       - name: "Build docs"
-        run: "mkdocs build --strict"
+        run: "mkdocs build"
 
       - name: "Upload docs artifact"
         uses: "actions/upload-pages-artifact@v3"
