@@ -72,6 +72,11 @@ jobs:
           VERSION="${GITHUB_REF_NAME}"
           if [[ "$VERSION" == "main" ]]; then
             mike deploy --push --update-aliases "$VERSION" latest
+            mike set-default --push latest
           else
             mike deploy --push "$VERSION"
+            # Set beta as default only if no default exists yet
+            if ! grep -q '"default": true' <(mike list --json 2>/dev/null); then
+              mike set-default --push "$VERSION"
+            fi
           fi
