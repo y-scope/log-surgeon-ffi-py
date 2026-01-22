@@ -134,33 +134,33 @@ flowchart LR
    parser = Parser()
    parser.add_var("metric", rf"value=(?<value>{PATTERN.INT})")
    ```
-   - `SchemaCompiler` collects variable patterns
-   - Extracts capture group names from regex
-   - Tracks priority for ordering
+   - `SchemaCompiler` collects variable patterns.
+   - Extracts capture group names from regex.
+   - Tracks priority for ordering.
 
 2. **Compilation**
    ```python
    parser.compile()
    ```
-   - `SchemaCompiler.compile()` generates schema string
-   - Schema passed to C++ `ReaderParser`
-   - C++ builds DFA for efficient matching
+   - `SchemaCompiler.compile()` generates schema string.
+   - Schema passed to C++ `ReaderParser`.
+   - C++ builds DFA for efficient matching.
 
 3. **Parsing**
    ```python
    for event in parser.parse(log_file):
        print(event["value"])
    ```
-   - Input streamed to C++ engine
-   - DFA matches patterns in single pass
-   - `LogEvent` objects returned with extracted data
+   - Input streamed to C++ engine.
+   - DFA matches patterns in single pass.
+   - `LogEvent` objects returned with extracted data.
 
 4. **Export (Optional)**
    ```python
    df = Query(parser).select(["*"]).from_(log_file).to_dataframe()
    ```
-   - `Query` wraps parsing with filtering/selection
-   - Exports to pandas DataFrame or PyArrow Table
+   - `Query` wraps parsing with filtering/selection.
+   - Exports to pandas DataFrame or PyArrow Table.
 
 ## Design Decisions
 

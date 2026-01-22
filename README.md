@@ -35,16 +35,16 @@ values with placeholders, enabling pattern-based log analysis.
 ### When to use `log-surgeon`
 
 **Good fit**
-* Large-scale log processing
-* Extracting structured data from semi-structured logs
-* Generating log templates for analytics
-* Multi-line log events (stack traces, JSON dumps)
-* Performance-critical parsing
+* Large-scale log processing.
+* Extracting structured data from semi-structured logs.
+* Generating log templates for analytics.
+* Multi-line log events (stack traces, JSON dumps).
+* Performance-critical parsing.
 
 **Not ideal**
-* Simple one-off text extraction (use Python `re` module)
-* Highly irregular text where variable boundaries cannot be defined by patterns
-* Patterns requiring full PCRE features (lookahead, backreferences)
+* Simple one-off text extraction (use Python `re` module).
+* Highly irregular text where variable boundaries cannot be defined by patterns.
+* Patterns requiring full PCRE features (lookahead, backreferences).
 
 ---
 
