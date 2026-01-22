@@ -192,23 +192,3 @@ A Rust re-implementation of the core parsing engine is in development, which wil
 - **Simplified builds** with easier cross-platform compilation via PyO3
 
 The Python API will remain stable—only the underlying engine will change.
-
-## Directory Structure
-
-```
-src/
-├── log_surgeon/              # Python package
-│   ├── __init__.py           # Public exports
-│   ├── parser.py             # Parser class
-│   ├── json_parser.py        # JsonParser class
-│   ├── query.py              # Query builder
-│   ├── log_event.py          # LogEvent class
-│   ├── schema_compiler.py    # Schema builder
-│   ├── pattern.py            # PATTERN constants
-│   └── variable.py           # Variable data class
-│
-└── log_surgeon_ffi/          # C++ extension
-    ├── log_surgeon_ffi.cpp   # Module init
-    ├── PyReaderParser.cpp    # Parser wrapper
-    └── *.hpp                  # Headers
-```
