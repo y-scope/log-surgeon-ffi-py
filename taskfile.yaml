@@ -5,6 +5,7 @@ shopt: ["globstar"]
 
 includes:
   deps: "taskfiles/deps.yaml"
+  docs: "taskfiles/docs.yaml"
   lint: "taskfiles/lint.yaml"
   log-surgeon: "taskfiles/log-surgeon.yaml"
   log-surgeon-ffi: "taskfiles/log-surgeon-ffi.yaml"

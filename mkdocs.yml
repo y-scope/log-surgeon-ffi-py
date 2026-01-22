@@ -1,0 +1,60 @@
+site_name: log-surgeon-ffi
+site_description: Python FFI bindings for log-surgeon
+site_url: https://y-scope.github.io/log-surgeon-ffi-py/
+repo_url: https://github.com/y-scope/log-surgeon-ffi-py
+repo_name: y-scope/log-surgeon-ffi-py
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            heading_level: 3
+            members_order: source
+            docstring_style: google
+            merge_init_into_class: true
+            show_signature_annotations: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Key Concepts: key-concepts.md
+  - API Reference: api-reference.md
+  - Architecture: architecture.md
+  - Development: development.md
