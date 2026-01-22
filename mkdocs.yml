@@ -58,3 +58,7 @@ nav:
   - API Reference: api-reference.md
   - Architecture: architecture.md
   - Development: development.md
+
+extra:
+  version:
+    provider: mike

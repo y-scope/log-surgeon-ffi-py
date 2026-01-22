@@ -38,23 +38,36 @@ jobs:
       - name: "Build docs"
         run: "mkdocs build"
 
-      - name: "Upload docs artifact"
-        uses: "actions/upload-pages-artifact@v3"
-        if: github.event_name == 'push'
-        with:
-          path: "site/"
-
   deploy:
     if: github.event_name == 'push'
-    needs: "build"
     runs-on: "ubuntu-latest"
     permissions:
-      pages: "write"
-      id-token: "write"
-    environment:
-      name: "github-pages"
-      url: "${{steps.deployment.outputs.page_url}}"
+      contents: "write"
     steps:
-      - name: "Deploy to GitHub Pages"
-        id: "deployment"
-        uses: "actions/deploy-pages@v4"
+      - uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
+
+      - name: "Set up Python"
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: "3.12"
+
+      - name: "Install dependencies"
+        run: |
+          pip install mkdocs mkdocs-material "mkdocstrings[python]" mike
+          pip install log-surgeon-ffi
+
+      - name: "Configure git"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: "Deploy versioned docs"
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          if [[ "$VERSION" == "main" ]]; then
+            mike deploy --push --update-aliases "$VERSION" latest
+          else
+            mike deploy --push "$VERSION"
+          fi
