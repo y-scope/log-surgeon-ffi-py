@@ -164,20 +164,13 @@ flowchart LR
 
 ## Design Decisions
 
-### Why FFI instead of Pure Python?
+### Why C++ FFI instead of pure Python?
 
-- **Performance**: C++ DFA engine is significantly faster than Python regex
-- **Single-pass parsing**: DFA matches all patterns simultaneously
-- **Memory efficiency**: Stream processing without loading entire file
+The C++ log-surgeon library provides a DFA-based parsing engine that matches all patterns in a single pass. Wrapping this via FFI preserves these performance characteristics while providing a Pythonic API. A pure Python re-implementation would require reimplementing the DFA engine, which would be slower and duplicate effort.
 
-### Why Schema Compilation?
+### Why a two-phase compile/parse API?
 
-- **DFA construction**: Patterns must be compiled into state machine
-- **Optimization**: Combined matching is faster than sequential regex
-- **Validation**: Catch pattern errors before parsing begins
-
-### Why Delimiter-Based Matching?
-
-- **Log structure alignment**: Logs naturally have delimited fields
-- **Predictable behavior**: `.` stops at natural boundaries
-- **Efficient log types**: Templates align with log structure
+The `compile()` step converts Python regex patterns into a log-surgeon schema string and initializes the C++ DFA. This separation:
+- Validates patterns before parsing begins.
+- Allows the DFA to be built once and reused across multiple parse calls.
+- Mirrors the underlying C++ API structure.
