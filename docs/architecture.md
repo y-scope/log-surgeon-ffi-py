@@ -162,24 +162,6 @@ flowchart LR
    - `Query` wraps parsing with filtering/selection
    - Exports to pandas DataFrame or PyArrow Table
 
-## FFI Implementation
-
-The FFI bridge (`src/log_surgeon_ffi/`) consists of:
-
-| File | Purpose |
-|------|---------|
-| `log_surgeon_ffi.cpp` | Python module initialization (`PyInit_log_surgeon_ffi`) |
-| `PyReaderParser.cpp/hpp` | Python wrapper for C++ `ReaderParser` |
-| `PyObjectCast.hpp` | Safe casting between Python and C++ types |
-| `PyObjectUtils.hpp` | Python object utility functions |
-| `PyExceptionContext.hpp` | Exception handling and error conversion |
-
-The C++ code:
-1. Receives schema string from Python
-2. Wraps `log_surgeon::ReaderParser` with Python-compatible I/O
-3. Returns `LogEvent` objects populated with extracted data
-4. Handles Python exceptions and error propagation
-
 ## Design Decisions
 
 ### Why FFI instead of Pure Python?
