@@ -1,19 +1,97 @@
-"""Common regex patterns for log parsing."""
+"""
+Common regex patterns for log parsing.
+
+This module provides the PATTERN class, a collection of pre-built regex patterns
+for common elements found in log messages. These patterns are designed for use
+with log-surgeon's delimiter-based matching system.
+
+Using these patterns saves time and ensures correct matching of common formats
+like IP addresses, UUIDs, file paths, and Java stack traces.
+
+Example
+-------
+```python
+from log_surgeon import Parser, PATTERN
+
+parser = Parser()
+parser.add_var("connection", rf"from (?<ip>{PATTERN.IPV4}):(?<port>{PATTERN.PORT})")
+parser.add_var("request_id", rf"req=(?<id>{PATTERN.UUID})")
+parser.add_var("value", rf"(?<num>{PATTERN.FLOAT})")
+parser.compile()
+
+event = parser.parse_event("from 192.168.1.1:8080 req=abc-123 val=3.14")
+print(event["ip"])    # "192.168.1.1"
+print(event["port"])  # "8080"
+```
+"""
 
 
 class PATTERN:
     """
-    Collection of common regex patterns for log parsing.
+    Collection of pre-built regex patterns for common log elements.
 
-    These patterns are designed for use with log-surgeon.
+    PATTERN provides ready-to-use regex patterns optimized for log-surgeon's
+    delimiter-based matching. Use these patterns with `add_var()` to extract
+    common log elements without writing complex regex manually.
 
-    Example:
-        >>> from log_surgeon import Parser, PATTERN
-        >>> parser = Parser()
-        >>> parser.add_var("ip", rf"IP: (?<ip>{PATTERN.IPV4})")
-        >>> parser.add_var("port", rf"port (?<port>{PATTERN.PORT})")
-        >>> parser.compile()
+    Categories
+    ----------
+    **Network Patterns**
+        UUID, IPV4, PORT
 
+    **Numeric Patterns**
+        INT, FLOAT
+
+    **File System Patterns**
+        LINUX_FILE_NAME, LINUX_FILE_PATH
+
+    **Character Sets**
+        JAVA_IDENTIFIER, LOG_LINE, LOG_LINE_NO_WHITE_SPACE
+
+    **Java Patterns**
+        JAVA_CLASS_NAME, JAVA_FULLY_QUALIFIED_CLASS_NAME, JAVA_STACK_LOCATION
+
+    Usage
+    -----
+    Embed patterns in your regex using f-strings:
+
+    ```python
+    parser.add_var("ip", rf"(?<ip>{PATTERN.IPV4})")
+    parser.add_var("value", rf"val=(?<v>{PATTERN.INT})")
+    ```
+
+    Note
+    ----
+    These patterns use log-surgeon regex syntax, which differs slightly from
+    Python regex. Notably, `.` matches any character except delimiters.
+
+    Example
+    -------
+    ```python
+    from log_surgeon import Parser, PATTERN
+
+    parser = Parser()
+
+    # Network patterns
+    parser.add_var("connection", rf"(?<ip>{PATTERN.IPV4}):(?<port>{PATTERN.PORT})")
+    parser.add_var("request_id", rf"id=(?<uuid>{PATTERN.UUID})")
+
+    # Numeric patterns
+    parser.add_var("metric", rf"(?<value>{PATTERN.FLOAT})")
+    parser.add_var("count", rf"n=(?<n>{PATTERN.INT})")
+
+    # File patterns
+    parser.add_var("file", rf"(?<path>{PATTERN.LINUX_FILE_PATH})")
+
+    # Java patterns
+    parser.add_var("class", rf"(?<class>{PATTERN.JAVA_FULLY_QUALIFIED_CLASS_NAME})")
+
+    parser.compile()
+    ```
+
+    See Also
+    --------
+    Parser.add_var : Method for adding patterns to a parser.
     """
 
     # ============================================================================
@@ -53,7 +131,7 @@ class PATTERN:
     """
     Pattern for network port numbers.
 
-    Matches 1-5 digit port numbers (0-65535 range, though doesn't validate upper bound).
+    Matches 1-5 digit port numbers (0-65535 range, though does not validate upper bound).
     Example: "80", "8080", "65535"
     """
 
@@ -121,7 +199,7 @@ class PATTERN:
     - Multi-level: "home/user/documents/file.txt"
 
     Note: This pattern matches relative paths. For absolute paths starting with "/",
-    you'll need to add the leading "/" separately in your pattern.
+    add the leading "/" separately in your pattern.
     """
 
     # ============================================================================
@@ -188,7 +266,7 @@ class PATTERN:
     Pattern for log line content without whitespace.
 
     Matches one or more characters from the LOG_LINE_NO_WHITE_SPACE_CHARSET set.
-    Useful for capturing individual tokens or identifiers in logs that don't
+    Useful for capturing individual tokens or identifiers in logs that do not
     contain spaces, such as file paths, URLs, or single-word values.
 
     Example: "ERROR", "connection_timeout", "/var/log/app.log", "user@example.com"
@@ -203,7 +281,7 @@ class PATTERN:
     Character set for Java identifiers.
 
     Java identifiers can contain letters, digits, underscores, and dollar signs.
-    Note: This doesn't include all valid Java identifier start characters (e.g., Unicode).
+    Note: This does not include all valid Java identifier start characters (e.g., Unicode).
     """
 
     JAVA_PACKAGE_SEGMENT = rf"[{JAVA_IDENTIFIER_CHARSET}][{JAVA_LITERAL_CHARSET}]*\."

@@ -1,4 +1,43 @@
-"""JSON log parser that applies log-surgeon extraction rules to JSON fields."""
+r"""
+JSON log parser that applies log-surgeon extraction rules to JSON fields.
+
+This module provides JsonParser, a specialized parser for JSON-formatted logs.
+It wraps an existing Parser instance and applies its extraction rules to
+string fields within JSON objects, then merges the extracted values back
+into the original JSON structure.
+
+Key Features
+------------
+- Parse NDJSON (newline-delimited JSON) or JSON array formats
+- Target specific fields or extract from all string fields
+- Support for nested field access using dot-notation
+- Configurable conflict resolution when extracted keys match existing JSON keys
+- Streaming support for large NDJSON files
+
+Example
+-------
+```python
+from log_surgeon import JsonParser, Parser
+
+# Create underlying parser with extraction patterns
+parser = Parser()
+parser.add_var("user_info", r"user=(?<user_id>\d+)")
+parser.compile()
+
+# Create JSON parser
+json_parser = JsonParser(parser).target_fields(["message"])
+
+# Parse JSON log line
+result = json_parser.parse_one('{"ts": "2024-01-01", "message": "user=123"}')
+print(result)
+# {'ts': '2024-01-01', 'message': 'user=123', 'extracted': {'user_id': '123'}}
+```
+
+See Also
+--------
+Parser : The underlying parser for pattern definition.
+ConflictStrategy : Enum for conflict resolution strategies.
+"""
 
 from __future__ import annotations
 
@@ -16,19 +55,52 @@ from log_surgeon.parser import Parser  # noqa: TC001 - used at runtime
 
 class ConflictStrategy(Enum):
     """
-    Strategy for handling conflicts when extracted variable names match existing JSON keys.
+    Strategy for handling conflicts when extracted keys match existing JSON keys.
 
-    Attributes:
-        OVERWRITE: Replace existing key with extracted value (prints warning to stderr)
-        PREFIX: Add configurable prefix to extracted variable names (prints warning on conflict)
-        NEST: Put all extracted variables under a nested key (default, safest - avoids conflicts)
-        RAISE: Raise KeyError on conflict (for development/testing)
+    When JsonParser extracts variables from JSON fields, the extracted key names
+    might conflict with keys already present in the JSON object. This enum
+    defines how such conflicts are resolved.
 
-    Example:
-        ```python
-        json_parser.on_conflict(ConflictStrategy.NEST, key="extracted")
-        # Result: {"message": "...", "extracted": {"user_id": "123"}}
-        ```
+    Attributes
+    ----------
+    NEST : enum member
+        Place all extracted variables under a nested key (default: "extracted").
+        This is the safest option as it completely avoids conflicts.
+        Result: `{"message": "...", "extracted": {"user_id": "123"}}`
+
+    PREFIX : enum member
+        Add a prefix to extracted variable names (default: "extracted.").
+        Warns to stderr if the prefixed key still conflicts.
+        Result: `{"message": "...", "extracted.user_id": "123"}`
+
+    OVERWRITE : enum member
+        Replace existing keys with extracted values. Prints a warning to stderr
+        when overwriting occurs. Use with caution as original data is lost.
+        Result: `{"user_id": "123"}` (original user_id overwritten)
+
+    RAISE : enum member
+        Raise KeyError when a conflict is detected. Useful for development
+        and testing to catch unexpected conflicts early.
+
+    Example
+    -------
+    ```python
+    from log_surgeon import JsonParser, ConflictStrategy
+
+    # Default: nest under "extracted" key
+    json_parser = JsonParser(parser)
+
+    # Custom nest key
+    json_parser.on_conflict(ConflictStrategy.NEST, key="parsed")
+    # Result: {"message": "...", "parsed": {"user_id": "123"}}
+
+    # Use prefix instead
+    json_parser.on_conflict(ConflictStrategy.PREFIX, prefix="log_")
+    # Result: {"message": "...", "log_user_id": "123"}
+
+    # Fail on conflict (for testing)
+    json_parser.on_conflict(ConflictStrategy.RAISE)
+    ```
 
     """
 
@@ -44,33 +116,69 @@ class JsonParser:
 
     JsonParser wraps an existing Parser and applies its extraction rules to JSON
     string fields, then merges the extracted variables back into the original JSON.
+    This enables structured extraction from JSON logs while preserving the original
+    JSON structure.
 
-    By default, extraction is applied to all string fields in the JSON object.
-    Use target_fields() to limit extraction to specific fields.
+    Key Features
+    ------------
+    - **Flexible field targeting**: Extract from all strings or specific fields
+    - **Nested field support**: Access nested JSON fields using dot-notation
+    - **Multiple formats**: Parse NDJSON or JSON array formats with auto-detection
+    - **Conflict resolution**: Configure how extracted keys merge with existing JSON
+    - **Streaming support**: Efficiently process large NDJSON files line by line
 
-    Note:
-        Extraction only works on string-type fields. Non-string fields (numbers,
-        booleans, objects, arrays) are skipped during extraction.
+    Default Behavior
+    ----------------
+    By default, JsonParser extracts from **all string fields** in the JSON object,
+    recursively traversing nested objects and arrays. Use `target_fields()` to
+    limit extraction to specific fields for better performance and precision.
 
-    Example:
-        ```python
-        from log_surgeon import JsonParser, Parser
+    Workflow
+    --------
+    1. Create a Parser with extraction patterns and compile it
+    2. Create a JsonParser wrapping the Parser
+    3. Optionally configure target fields and conflict strategy
+    4. Parse JSON logs using `parse()` or `parse_one()`
 
-        # Create underlying parser with extraction patterns
-        parser = Parser()
-        parser.add_var("user_info", r"user=(?<user_id>\d+)")
-        parser.compile()
+    Note
+    ----
+    Extraction only works on string-type fields. Non-string fields (numbers,
+    booleans, nested objects, arrays) are skipped unless they contain strings.
 
-        # Create JSON parser (defaults to extracting from all string fields)
-        json_parser = JsonParser(parser)
+    Example
+    -------
+    ```python
+    from log_surgeon import JsonParser, Parser, ConflictStrategy
 
-        # Parse JSON logs
-        input_json = '{"ts": "2024-01-01", "message": "user=123 request"}'
-        result = json_parser.parse_one(input_json)
-        print(result)
-        # {'ts': '2024-01-01', 'message': 'user=123 request', 'extracted': {'user_id': '123'}}
-        ```
+    # Step 1: Create and configure underlying parser
+    parser = Parser()
+    parser.add_var("user_info", r"user=(?<user_id>\d+)")
+    parser.add_var("action", r"action=(?<action>\w+)")
+    parser.compile()
 
+    # Step 2: Create JSON parser with field targeting
+    json_parser = (
+        JsonParser(parser)
+        .target_fields(["message", "context.detail"])  # Only parse these fields
+        .on_conflict(ConflictStrategy.NEST, key="extracted")
+    )
+
+    # Step 3: Parse JSON logs
+    input_json = '{"ts": "2024-01-01", "message": "user=123 action=login"}'
+    result = json_parser.parse_one(input_json)
+    print(result)
+    # {
+    #     'ts': '2024-01-01',
+    #     'message': 'user=123 action=login',
+    #     'extracted': {'user_id': '123', 'action': 'login'}
+    # }
+    ```
+
+    See Also
+    --------
+    Parser : For creating extraction patterns.
+    ConflictStrategy : For configuring conflict resolution.
+    Query : For exporting JsonParser results to DataFrames.
     """
 
     __slots__ = (
@@ -85,15 +193,50 @@ class JsonParser:
     )
 
     def __init__(self, parser: Parser) -> None:
-        """
+        r"""
         Initialize the JSON parser with an underlying Parser.
 
-        By default, the parser extracts from all string fields ("*" mode).
-        Use target_fields() to specify specific fields instead.
+        Creates a JsonParser that applies the given Parser's extraction patterns
+        to JSON string fields. By default, extracts from all string fields.
 
         Args:
-            parser: A configured and compiled Parser instance for log parsing.
-                The parser should have variables added via add_var() and be compiled.
+            parser: A compiled Parser instance with extraction patterns defined.
+                Must have `compile()` called before use. The parser's patterns
+                will be applied to targeted JSON string fields.
+
+        Note
+        ----
+        Default configuration:
+
+        - Extracts from all string fields (equivalent to `target_fields("*")`)
+        - Uses NEST conflict strategy with key "extracted"
+        - Does not include log type in output
+
+        Use the fluent API methods to customize behavior:
+
+        - `target_fields()`: Limit which JSON fields are parsed
+        - `on_conflict()`: Configure conflict resolution strategy
+        - `include_log_type()`: Include log type templates in output
+
+        Example
+        -------
+        ```python
+        # Create and configure the underlying parser
+        parser = Parser()
+        parser.add_var("metric", r"value=(?<value>\d+)")
+        parser.compile()
+
+        # Create JSON parser with default settings
+        json_parser = JsonParser(parser)
+
+        # Or customize with fluent API
+        json_parser = (
+            JsonParser(parser)
+            .target_fields(["message"])
+            .on_conflict(ConflictStrategy.NEST, key="data")
+            .include_log_type(True)
+        )
+        ```
 
         """
         self._parser: Parser = parser
@@ -109,36 +252,58 @@ class JsonParser:
         """
         Configure which JSON fields to target for variable extraction.
 
-        By default (if this method is not called), JsonParser extracts from all
-        string fields. Use this method to limit extraction to specific fields,
-        or pass "*" to explicitly extract from all string fields.
+        By default, JsonParser extracts from all string fields in the JSON object.
+        Use this method to limit extraction to specific fields for better
+        performance and to avoid unintended matches in other fields.
 
         Args:
-            fields: Field specification. Can be:
-                - A single field name as a string (e.g., "message")
-                - A list of field names (e.g., ["message", "context.detail"])
-                - "*" or ["*"] to explicitly target all string fields
-                Supports dot-notation for nested fields.
+            fields: Field specification. Accepts:
+
+                - `str`: Single field name (e.g., `"message"`)
+                - `list[str]`: Multiple field names (e.g., `["message", "context.detail"]`)
+                - `"*"` or `["*"]`: Explicitly target all string fields
+
+                Dot-notation is supported for nested fields (e.g., `"context.message"`
+                accesses `{"context": {"message": "..."}}`).
 
         Returns:
             Self for method chaining.
 
-        Example:
-            ```python
-            # Default: extracts from all string fields
-            json_parser = JsonParser(parser)
+        Raises:
+            ValueError: If `fields` is an empty list.
 
-            # Limit to specific field (string or list)
-            json_parser.target_fields("message")
-            json_parser.target_fields(["message"])
+        Note
+        ----
+        Targeting specific fields is recommended for production use:
 
-            # Multiple fields
-            json_parser.target_fields(["message", "context.detail"])
+        - **Performance**: Avoids parsing irrelevant fields
+        - **Precision**: Prevents false matches in metadata fields
+        - **Clarity**: Makes extraction intent explicit
 
-            # Explicitly target all string fields
-            json_parser.target_fields("*")
-            json_parser.target_fields(["*"])
-            ```
+        Example
+        -------
+        ```python
+        json_parser = JsonParser(parser)
+
+        # Target single field
+        json_parser.target_fields("message")
+
+        # Target multiple fields (including nested)
+        json_parser.target_fields(["message", "error.details", "context.info"])
+
+        # Reset to all string fields
+        json_parser.target_fields("*")
+        ```
+
+        Nested Field Example
+        --------------------
+        ```python
+        json_data = '{"context": {"message": "user=123"}, "other": "ignored"}'
+
+        json_parser = JsonParser(parser).target_fields(["context.message"])
+        result = json_parser.parse_one(json_data)
+        # Only "context.message" is parsed; "other" is ignored
+        ```
 
         """
         # Normalize input: convert string to list, handle "*"
@@ -166,24 +331,46 @@ class JsonParser:
         key: str = "extracted",
     ) -> JsonParser:
         """
-        Configure how to handle conflicts when extracted keys exist in original JSON.
+        Configure how to handle key conflicts between extracted and existing JSON keys.
+
+        When an extracted variable name matches an existing key in the JSON object,
+        this setting determines how the conflict is resolved.
 
         Args:
             strategy: The conflict resolution strategy to use.
-            prefix: Prefix to add to extracted variable names when using PREFIX strategy.
-            key: Key under which to nest extracted variables when using NEST strategy.
+                See `ConflictStrategy` for available options.
+            prefix: Prefix for extracted keys when using `ConflictStrategy.PREFIX`.
+                Default: `"extracted."`. Only used with PREFIX strategy.
+            key: Nesting key when using `ConflictStrategy.NEST`.
+                Default: `"extracted"`. Only used with NEST strategy.
 
         Returns:
             Self for method chaining.
 
-        Example:
-            ```python
-            # Nest all extracted variables under "extracted" key
-            json_parser.on_conflict(ConflictStrategy.NEST, key="extracted")
+        Example
+        -------
+        ```python
+        from log_surgeon import JsonParser, ConflictStrategy
 
-            # Add prefix to extracted variable names
-            json_parser.on_conflict(ConflictStrategy.PREFIX, prefix="parsed_")
-            ```
+        # NEST (default): All extracted values under a nested key
+        json_parser.on_conflict(ConflictStrategy.NEST, key="parsed")
+        # Input:  {"message": "user=123"}
+        # Output: {"message": "user=123", "parsed": {"user_id": "123"}}
+
+        # PREFIX: Add prefix to each extracted key
+        json_parser.on_conflict(ConflictStrategy.PREFIX, prefix="log_")
+        # Input:  {"message": "user=123"}
+        # Output: {"message": "user=123", "log_user_id": "123"}
+
+        # OVERWRITE: Replace existing keys (use with caution)
+        json_parser.on_conflict(ConflictStrategy.OVERWRITE)
+        # Input:  {"user_id": "old", "message": "user=123"}
+        # Output: {"user_id": "123", "message": "user=123"}  # Warning printed
+
+        # RAISE: Fail on conflict (for development/testing)
+        json_parser.on_conflict(ConflictStrategy.RAISE)
+        # Raises KeyError if extracted key exists in JSON
+        ```
 
         """
         self._conflict_strategy = strategy
@@ -193,13 +380,33 @@ class JsonParser:
 
     def include_log_type(self, include: bool = True) -> JsonParser:
         """
-        Configure whether to include the log type in the output.
+        Configure whether to include log type templates in the output.
+
+        Log types are template strings where matched variables are replaced with
+        placeholders (e.g., "user=123" becomes "user=<user_id>"). They are useful
+        for log clustering, pattern analysis, and anomaly detection.
 
         Args:
             include: If True, include "@log_type" in extracted variables.
+                Default: True when this method is called.
 
         Returns:
             Self for method chaining.
+
+        Note
+        ----
+        When enabled, each parsed field contributes its log type. If multiple
+        fields are parsed, log types are aggregated.
+
+        Example
+        -------
+        ```python
+        json_parser = JsonParser(parser).include_log_type(True)
+
+        result = json_parser.parse_one('{"message": "user=123 action=login"}')
+        print(result["extracted"]["@log_type"])
+        # "user=<user_id> action=<action>"
+        ```
 
         """
         self._include_log_type = include
@@ -208,35 +415,64 @@ class JsonParser:
     def parse(
         self, source: str | TextIO | BinaryIO | io.StringIO | io.BytesIO
     ) -> Generator[dict[str, Any], None, None]:
-        """
+        r"""
         Parse JSON logs from an input source.
 
-        Supports both NDJSON (newline-delimited JSON) and JSON array formats.
-        Auto-detects the format based on whether the input starts with '['.
-
-        For NDJSON with file objects, uses streaming to avoid loading entire
-        file into memory.
+        Generator that yields enriched JSON dictionaries with extracted variables
+        merged in. Supports both NDJSON (newline-delimited JSON) and JSON array
+        formats, with automatic format detection.
 
         Args:
-            source: Input data to parse. Can be:
-                - str: Plain string containing JSON data
-                - TextIO: Text file object
-                - BinaryIO: Binary file object
-                - io.StringIO: String buffer
-                - io.BytesIO: Bytes buffer
+            source: Input data to parse. Accepts:
+
+                - `str`: String containing JSON data (NDJSON or JSON array)
+                - `TextIO`: File opened in text mode
+                - `BinaryIO`: File opened in binary mode
+                - `io.StringIO`: In-memory text stream
+                - `io.BytesIO`: In-memory binary stream
 
         Yields:
-            Enriched JSON dictionaries with extracted variables merged in.
+            dict: Enriched JSON object with extracted variables merged according
+            to the configured conflict strategy.
 
         Raises:
-            json.JSONDecodeError: If the input is not valid JSON.
+            json.JSONDecodeError: If the input contains invalid JSON.
             TypeError: If the source type is not supported.
 
-        Example:
-            ```python
-            for enriched in json_parser.parse(ndjson_input):
-                print(enriched)
-            ```
+        Format Detection
+        ----------------
+        The format is auto-detected by checking the first non-whitespace character:
+
+        - Starts with `[`: Parsed as JSON array (entire content loaded)
+        - Otherwise: Parsed as NDJSON (streamed line by line for file objects)
+
+        Note
+        ----
+        For NDJSON files, parsing is streamed line-by-line to minimize memory usage.
+        JSON arrays must be fully loaded into memory for parsing.
+
+        Example
+        -------
+        ```python
+        # Parse NDJSON from string
+        ndjson = '''{"message": "user=123"}
+        {"message": "user=456"}'''
+
+        for result in json_parser.parse(ndjson):
+            print(result["extracted"]["user_id"])
+        # 123
+        # 456
+
+        # Parse JSON array
+        json_array = '[{"message": "user=123"}, {"message": "user=456"}]'
+        for result in json_parser.parse(json_array):
+            print(result["extracted"]["user_id"])
+
+        # Stream from file
+        with open("logs.ndjson") as f:
+            for result in json_parser.parse(f):
+                print(result)
+        ```
 
         """
         # For strings, use non-streaming approach (already in memory)
@@ -249,22 +485,41 @@ class JsonParser:
 
     def parse_one(self, json_line: str) -> dict[str, Any]:
         """
-        Parse a single JSON line and return the enriched dictionary.
+        Parse a single JSON object and return the enriched result.
+
+        Convenience method for parsing a single JSON log entry. For multiple
+        entries, use `parse()` instead.
 
         Args:
-            json_line: A single JSON object as a string.
+            json_line: A single JSON object as a string. Must be a valid JSON
+                object (starts with `{`), not an array or primitive.
 
         Returns:
-            Enriched JSON dictionary with extracted variables merged in.
+            Enriched JSON dictionary with the original fields plus extracted
+            variables merged according to the configured conflict strategy.
 
         Raises:
             json.JSONDecodeError: If the input is not valid JSON.
 
-        Example:
-            ```python
-            result = json_parser.parse_one('{"message": "user=123"}')
-            print(result["extracted"]["user_id"])  # 123
-            ```
+        Example
+        -------
+        ```python
+        result = json_parser.parse_one('{"ts": "2024-01-01", "message": "user=123"}')
+
+        # Access original fields
+        print(result["ts"])  # "2024-01-01"
+        print(result["message"])  # "user=123"
+
+        # Access extracted fields (with default NEST strategy)
+        print(result["extracted"]["user_id"])  # "123"
+
+        # Full result structure
+        # {
+        #     "ts": "2024-01-01",
+        #     "message": "user=123",
+        #     "extracted": {"user_id": "123"}
+        # }
+        ```
 
         """
         obj = json.loads(json_line)

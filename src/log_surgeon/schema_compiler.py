@@ -1,4 +1,33 @@
-"""Schema compiler for constructing log-surgeon schema definitions."""
+r"""
+Schema compiler for constructing log-surgeon schema definitions.
+
+This module provides the SchemaCompiler class, which builds schema definitions
+used by the log-surgeon parsing engine. While most users will interact with
+the higher-level Parser class, SchemaCompiler provides low-level control for
+advanced use cases.
+
+The compiled schema defines:
+- Delimiters for tokenization
+- Timestamp patterns for multi-line event detection
+- Variable patterns with capture groups for extraction
+
+Example
+-------
+```python
+from log_surgeon.schema_compiler import SchemaCompiler
+
+compiler = SchemaCompiler()
+compiler.add_var("request", r"(?<method>GET|POST) (?<path>/\S+)")
+compiler.add_var("status", r"status=(?<code>\d+)")
+schema = compiler.compile()
+
+# schema is a string ready for the log-surgeon engine
+```
+
+See Also
+--------
+Parser : High-level interface that uses SchemaCompiler internally.
+"""
 
 import re
 
@@ -21,15 +50,67 @@ class SchemaCompiler:
     r"""
     Compiler for constructing log-surgeon schema definitions.
 
-    The SchemaCompiler provides a fluent interface for defining variables, timestamps,
-    and delimiters that will be used to parse log messages.
+    SchemaCompiler provides a fluent interface for building schema definitions
+    used by the log-surgeon parsing engine. It handles variable registration,
+    pattern validation, and schema serialization.
 
-    Example:
-        >>> compiler = SchemaCompiler()
-        >>> compiler.add_var("metric", r"value=(?<value>\\d+)")
-        >>> compiler.add_timestamp("ts", r"\\d{4}/\\d{2}/\\d{2}")
-        >>> schema = compiler.compile()
+    Key Responsibilities
+    --------------------
+    - Register variable patterns with named capture groups
+    - Track capture group names for validation
+    - Manage variable priority for pattern ordering
+    - Generate hidden variable names for internal use
+    - Compile the final schema string
 
+    Schema Format
+    -------------
+    The compiled schema is a text format with sections for delimiters,
+    timestamps, and variables:
+
+    ```
+    delimiters: \t\r\n:,!;%@/()[]
+    timestamp:<pattern>
+    VariableName:<pattern>
+    ```
+
+    Priority System
+    ---------------
+    Variables are ordered in the schema by:
+    1. Priority (descending): higher priority = appears first
+    2. Insertion order (ascending): earlier added = appears first
+
+    This ordering affects which pattern is tried first when multiple
+    patterns could match the same text.
+
+    Note
+    ----
+    Most users should use the Parser class, which provides a simpler
+    interface and handles schema compilation automatically. Use
+    SchemaCompiler directly only for advanced use cases.
+
+    Example
+    -------
+    ```python
+    from log_surgeon.schema_compiler import SchemaCompiler
+
+    compiler = SchemaCompiler()
+
+    # Add patterns with priority
+    compiler.add_var("ip", r"(?<ip>[0-9.]+)", priority=10)
+    compiler.add_var("request", r"(?<method>GET|POST) (?<path>/\S+)")
+    compiler.add_var("int", r"(?<num>\d+)", priority=-1)  # Low priority
+
+    # Add timestamp for multi-line event detection
+    compiler.add_timestamp("iso", r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+
+    # Compile to schema string
+    schema = compiler.compile()
+    ```
+
+    See Also
+    --------
+    Parser : High-level interface for log parsing.
+    Variable : Data class representing a variable definition.
     """
 
     def __init__(self, delimiters: str = DEFAULT_DELIMITERS) -> None:
@@ -57,37 +138,67 @@ class SchemaCompiler:
         self._capture_group_names: set[str] = set()
 
     def add_timestamp(self, name: str, regex: str) -> "SchemaCompiler":
-        """
+        r"""
         Add a timestamp pattern to the schema.
 
+        Timestamps help log-surgeon detect log event boundaries. When a
+        timestamp pattern matches at the start of a line, it signals a
+        new log event, enabling correct handling of multi-line events
+        like stack traces.
+
         Args:
-            name: Name identifier for the timestamp
-            regex: Regular expression pattern for matching timestamps
+            name: Unique identifier for this timestamp pattern.
+            regex: Regular expression for matching timestamp formats.
 
         Returns:
-            Self for method chaining
+            Self for method chaining.
+
+        Example
+        -------
+        ```python
+        compiler = SchemaCompiler()
+        compiler.add_timestamp("iso", r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+        compiler.add_timestamp("unix", r"\d{10}")
+        ```
 
         """
         self.timestamps[name] = regex
         return self
 
     def add_var(self, name: str, regex: str, priority: int = 0) -> "SchemaCompiler":
-        """
+        r"""
         Add a variable pattern to the schema.
 
+        Patterns must include at least one named capture group using
+        `(?<name>...)` syntax. The capture group names become the keys
+        for accessing extracted values from parsed events.
+
         Args:
-            name: Variable name
-            regex: Regular expression pattern (supports (?<name>) capture groups)
-            priority: Priority for ordering in schema (higher = appears first).
-                Default is 0. Use negative values for generic patterns (e.g., -1 for int/float).
-                Variables with same priority maintain insertion order.
+            name: Unique identifier for this variable pattern.
+            regex: Regular expression with named capture groups.
+                Use `(?<name>pattern)` syntax for extraction.
+            priority: Pattern ordering priority. Higher values are tried
+                first during matching. Default is 0.
+
+                - Use positive values for specific patterns (IP, UUID)
+                - Use negative values for generic catch-alls (INT, FLOAT)
 
         Returns:
-            Self for method chaining
+            Self for method chaining.
 
         Raises:
-            AttributeError: If variable name conflicts with existing names
-            ValueError: If variable/capture names contain delimiter characters
+            ValueError: If pattern has no capture groups, or if names
+                contain delimiter characters.
+            AttributeError: If a variable with this name already exists.
+
+        Example
+        -------
+        ```python
+        compiler = SchemaCompiler()
+        compiler.add_var("ip", r"(?<ip>[0-9.]+)", priority=10)
+        compiler.add_var("request", r"(?<method>GET|POST) (?<path>/\S+)")
+        compiler.add_var("int", r"(?<num>\d+)", priority=-1)
+        ```
 
         """
         # Extract capture group names
@@ -122,7 +233,7 @@ class SchemaCompiler:
 
     def _validate_variable_name(self, name: str) -> None:
         """
-        Validate that a variable name doesn't conflict with existing names or delimiters.
+        Validate that a variable name does not conflict with existing names or delimiters.
 
         Args:
             name: Variable name to validate
@@ -183,15 +294,36 @@ class SchemaCompiler:
 
     def compile(self) -> str:
         r"""
-        Compile the final schema string.
+        Compile the schema to a string for the log-surgeon engine.
+
+        Generates the final schema definition that includes delimiters,
+        timestamps, and variables ordered by priority. This string is
+        passed to the log-surgeon C++ library for DFA compilation.
 
         Returns:
-            Schema definition string ready for use with the parser
+            Schema definition string in log-surgeon format.
 
-        Example:
-            >>> compiler = SchemaCompiler()
-            >>> compiler.add_var("MyVar", r"pattern (?<field>[a-zA-Z]+)")
-            >>> schema = compiler.compile()
+        Note
+        ----
+        Variables are ordered by:
+        1. Priority (descending): higher priority patterns first
+        2. Insertion order (ascending): earlier added patterns first
+
+        This ordering determines which pattern is tried first when multiple
+        patterns could match the same text.
+
+        Example
+        -------
+        ```python
+        compiler = SchemaCompiler()
+        compiler.add_var("ip", r"(?<ip>[0-9.]+)", priority=10)
+        compiler.add_var("number", r"(?<num>\d+)", priority=-1)
+        compiler.add_timestamp("ts", r"\d{4}-\d{2}-\d{2}")
+
+        schema = compiler.compile()
+        # Returns formatted schema string with sections for
+        # delimiters, timestamps, and variables
+        ```
 
         """
         schema_sections = [f"// schema delimiters\ndelimiters:{self.delimiters}"]
