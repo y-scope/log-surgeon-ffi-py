@@ -31,3 +31,12 @@ tasks:
     silent: true
     run: "once"
     cmd: "mkdir -p '{{.G_BUILD_DIR}}'"
+
+  readme:
+    desc: "Generate README.md from template"
+    cmd: "python3 tools/generate_readme.py"
+    sources:
+      - "README.md.in"
+      - "pyproject.toml"
+    generates:
+      - "README.md"

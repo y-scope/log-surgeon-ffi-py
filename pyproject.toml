@@ -153,6 +153,9 @@ isort.order-by-type = false
 docstring-code-format = true
 docstring-code-line-length = 100
 
+[tool.log-surgeon]
+docs_version = "beta"
+
 [tool.scikit-build]
 cmake.build-type = "Release"
 wheel.packages = [
