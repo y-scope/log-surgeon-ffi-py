@@ -1,6 +1,6 @@
 [project]
 name = "log-surgeon-ffi"
-version = "0.1.0-beta.8"
+version = "0.1.0-beta.9"
 description = "Python FFI bindings for log-surgeon: high-performance parsing of unstructured logs into structured data"
 license = { text = "Apache License 2.0" }
 authors = [
