@@ -474,6 +474,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#backend-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-regex-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported regex syntax
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -567,6 +589,33 @@
     
   
     Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
   
 
     
@@ -700,6 +749,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#backend-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-regex-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported regex syntax
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -786,7 +857,7 @@
 - Timestamps (via <code>add_timestamp()</code>) always appear first, regardless of priority.</p>
 <h3 id="named-capture-groups">Named capture groups<a class="headerlink" href="#named-capture-groups" title="Permanent link">&para;</a></h3>
 <p>Use <code>(?&lt;name&gt;pattern)</code> syntax to extract fields:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;metric&quot;</span><span class="p">,</span> <span class="sa">rf</span><span class="s2">&quot;metric=(?&lt;metric_name&gt;\w+) value=(?&lt;value&gt;\d+)&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;metric&quot;</span><span class="p">,</span> <span class="sa">rf</span><span class="s2">&quot;metric=(?&lt;metric_name&gt;[a-zA-Z0-9_]+) value=(?&lt;value&gt;\d+)&quot;</span><span class="p">)</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">event</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_event</span><span class="p">(</span><span class="s2">&quot;metric=cpu value=42&quot;</span><span class="p">)</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s1">&#39;metric_name&#39;</span><span class="p">])</span>  <span class="c1"># &quot;cpu&quot;</span>
@@ -825,6 +896,68 @@
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;metrics&quot;</span><span class="p">,</span> <span class="sa">rf</span><span class="s2">&quot;value=(?&lt;val&gt;</span><span class="si">{</span><span class="n">PATTERN</span><span class="o">.</span><span class="n">FLOAT</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">parser</span><span class="o">.</span><span class="n">compile</span><span class="p">()</span>
 </code></pre></div>
+<h3 id="backend-selection">Backend selection<a class="headerlink" href="#backend-selection" title="Permanent link">&para;</a></h3>
+<p><code>log-surgeon-ffi</code> supports two backend engines: C++ (default) and Rust. Both are bundled in
+the wheel and require no extra installation. Select via the <code>backend</code> parameter or the
+<code>LOG_SURGEON_BACKEND</code> environment variable:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Via parameter</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rust&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Via environment variable (default: &quot;cpp&quot;)</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="c1"># export LOG_SURGEON_BACKEND=rust</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">()</span>
+</code></pre></div>
+<p>Both backends share the same Python API. The Rust backend is under active development and
+may have minor behavioral differences noted below.</p>
+<h3 id="supported-regex-syntax">Supported regex syntax<a class="headerlink" href="#supported-regex-syntax" title="Permanent link">&para;</a></h3>
+<p>log-surgeon uses its own regex dialect, which is a subset of standard regex. The supported
+escape sequences differ between backends:</p>
+<table>
+<thead>
+<tr>
+<th>Escape</th>
+<th>Meaning</th>
+<th>C++</th>
+<th>Rust</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>\d</code></td>
+<td><code>[0-9]</code></td>
+<td>Native</td>
+<td>Translated in Python</td>
+</tr>
+<tr>
+<td><code>\s</code></td>
+<td><code>[ \t\r\n]</code></td>
+<td>Native</td>
+<td>Translated in Python</td>
+</tr>
+<tr>
+<td><code>\w</code></td>
+<td><code>[a-zA-Z0-9_]</code></td>
+<td><strong>Not supported</strong></td>
+<td>Translated in Python</td>
+</tr>
+<tr>
+<td><code>\n</code> <code>\r</code> <code>\t</code></td>
+<td>Newline, carriage return, tab</td>
+<td>Native</td>
+<td>Native</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>For maximum portability across backends, use explicit character classes:
+<code>[0-9]</code> instead of <code>\d</code>, <code>[a-zA-Z0-9_]</code> instead of <code>\w</code>.</p>
+</div>
+<p>The Rust backend automatically translates <code>\d</code>, <code>\w</code>, and <code>\s</code> (and their negated uppercase
+forms <code>\D</code>, <code>\W</code>, <code>\S</code>) to their equivalent character classes before passing patterns to the
+engine.</p>
+<p>Features <strong>not supported</strong> by either backend: lookahead, lookbehind, backreferences, <code>\b</code>
+(word boundaries), non-greedy quantifiers (<code>*?</code>, <code>+?</code>).</p>
 <hr />
 <h2 id="common-pitfalls">Common Pitfalls<a class="headerlink" href="#common-pitfalls" title="Permanent link">&para;</a></h2>
 <p><strong>Pattern matches less than expected</strong>
@@ -833,6 +966,8 @@
 - log-surgeon's <code>.</code> excludes delimiters; standard regex's <code>.</code> only excludes newline. This is the most common source of confusion.</p>
 <p><strong>Escape sequence errors</strong>
 - Use raw f-strings (<code>rf"..."</code>) instead of regular strings to avoid double-escaping issues.</p>
+<p><strong><code>\w</code> crashes the C++ backend</strong>
+- The C++ backend does not support <code>\w</code>. Use <code>[a-zA-Z0-9_]</code> instead for cross-backend compatibility. The Rust backend translates <code>\w</code> automatically.</p>
 
 
 

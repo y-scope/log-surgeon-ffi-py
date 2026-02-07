@@ -479,10 +479,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-ffi-bridge" class="md-nav__link">
+  <a href="#3-ffi-bridges" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. FFI Bridge
+        3. FFI Bridges
       
     </span>
   </a>
@@ -490,10 +490,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-c-library" class="md-nav__link">
+  <a href="#4-native-libraries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. C++ Library
+        4. Native Libraries
       
     </span>
   </a>
@@ -546,10 +546,32 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#why-c-ffi-instead-of-pure-python" class="md-nav__link">
+  <a href="#why-ffi-instead-of-pure-python" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why C++ FFI instead of pure Python?
+        Why FFI instead of pure Python?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-two-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why two backends?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-is-the-rust-library-distributed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How is the Rust library distributed?
       
     </span>
   </a>
@@ -595,6 +617,33 @@
     
   
     Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
   
 
     
@@ -679,10 +728,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-ffi-bridge" class="md-nav__link">
+  <a href="#3-ffi-bridges" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. FFI Bridge
+        3. FFI Bridges
       
     </span>
   </a>
@@ -690,10 +739,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-c-library" class="md-nav__link">
+  <a href="#4-native-libraries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. C++ Library
+        4. Native Libraries
       
     </span>
   </a>
@@ -746,10 +795,32 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#why-c-ffi-instead-of-pure-python" class="md-nav__link">
+  <a href="#why-ffi-instead-of-pure-python" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why C++ FFI instead of pure Python?
+        Why FFI instead of pure Python?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-two-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why two backends?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-is-the-rust-library-distributed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How is the Rust library distributed?
       
     </span>
   </a>
@@ -795,7 +866,7 @@
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
 <p>This document describes the internal architecture of <code>log-surgeon-ffi</code>.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p><code>log-surgeon-ffi</code> is a Python wrapper around the high-performance C++ <a href="https://github.com/y-scope/log-surgeon"><code>log-surgeon</code></a> library. The architecture follows a layered design with a clear FFI (Foreign Function Interface) boundary.</p>
+<p><code>log-surgeon-ffi</code> is a Python wrapper around the high-performance <a href="https://github.com/y-scope/log-surgeon"><code>log-surgeon</code></a> library. It supports two backend engines (C++ and Rust) behind a unified Python API. The architecture follows a layered design with clear FFI (Foreign Function Interface) boundaries.</p>
 <pre class="mermaid"><code>flowchart TB
     subgraph UserCode["User Code"]
         App["Application"]
@@ -814,13 +885,23 @@
         Variable["Variable"]
     end
 
-    subgraph FFI["FFI Bridge (C++ Extension)"]
+    subgraph CppFFI["C++ FFI Bridge (pybind11)"]
         PyReaderParser["PyReaderParser"]
     end
 
     subgraph CPP["C++ Library"]
-        ReaderParser["log_surgeon::ReaderParser"]
-        DFA["DFA Engine"]
+        CppReaderParser["log_surgeon::ReaderParser"]
+        CppDFA["DFA Engine"]
+    end
+
+    subgraph RustFFI["Rust FFI Bridge (cffi)"]
+        RustBackend["RustBackend"]
+        RustFFIBindings["_rust_ffi (cffi/dlopen)"]
+    end
+
+    subgraph Rust["Rust Library (log-mechanic)"]
+        RustLexer["Lexer"]
+        RustDFA["Tagged DFA Engine"]
     end
 
     App --&gt; Parser
@@ -829,6 +910,7 @@
 
     Parser --&gt; SchemaCompiler
     Parser --&gt; PyReaderParser
+    Parser --&gt; RustBackend
     Parser --&gt; PATTERN
     SchemaCompiler --&gt; Variable
 
@@ -838,8 +920,13 @@
     Query --&gt; JsonParser
 
     PyReaderParser --&gt; LogEvent
-    PyReaderParser --&gt; ReaderParser
-    ReaderParser --&gt; DFA</code></pre>
+    PyReaderParser --&gt; CppReaderParser
+    CppReaderParser --&gt; CppDFA
+
+    RustBackend --&gt; LogEvent
+    RustBackend --&gt; RustFFIBindings
+    RustFFIBindings --&gt; RustLexer
+    RustLexer --&gt; RustDFA</code></pre>
 <h2 id="component-layers">Component Layers<a class="headerlink" href="#component-layers" title="Permanent link">&para;</a></h2>
 <h3 id="1-python-api-layer">1. Python API Layer<a class="headerlink" href="#1-python-api-layer" title="Permanent link">&para;</a></h3>
 <p>The public interface that users interact with:</p>
@@ -893,8 +980,9 @@
 </tr>
 </tbody>
 </table>
-<h3 id="3-ffi-bridge">3. FFI Bridge<a class="headerlink" href="#3-ffi-bridge" title="Permanent link">&para;</a></h3>
-<p>The C++ extension module that bridges Python and C++:</p>
+<h3 id="3-ffi-bridges">3. FFI Bridges<a class="headerlink" href="#3-ffi-bridges" title="Permanent link">&para;</a></h3>
+<p>Two backend engines are available, selected via <code>Parser(backend=...)</code> or the <code>LOG_SURGEON_BACKEND</code> environment variable:</p>
+<p><strong>C++ Backend</strong> (default) — pybind11 extension module:</p>
 <table>
 <thead>
 <tr>
@@ -909,8 +997,27 @@
 </tr>
 </tbody>
 </table>
-<h3 id="4-c-library">4. C++ Library<a class="headerlink" href="#4-c-library" title="Permanent link">&para;</a></h3>
-<p>The core parsing engine from <a href="https://github.com/y-scope/log-surgeon">log-surgeon</a>:</p>
+<p><strong>Rust Backend</strong> — cffi ABI mode (dlopen):</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RustBackend</strong></td>
+<td>Bridges Rust lexer fragments to LogEvent objects; supports context manager protocol</td>
+</tr>
+<tr>
+<td><strong>_rust_ffi</strong></td>
+<td>cffi bindings (dlopen) for the <code>liblog_mechanic</code> shared library (bundled in wheel)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4-native-libraries">4. Native Libraries<a class="headerlink" href="#4-native-libraries" title="Permanent link">&para;</a></h3>
+<p><strong>C++ Library</strong> — <a href="https://github.com/y-scope/log-surgeon">log-surgeon</a>:</p>
 <table>
 <thead>
 <tr>
@@ -926,6 +1033,25 @@
 <tr>
 <td><strong>DFA Engine</strong></td>
 <td>Deterministic finite automaton for efficient pattern matching</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rust Library</strong> — log-mechanic (in the log-surgeon repo under <code>rust/</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lexer</strong></td>
+<td>Fragment-based lexer using tagged DFA simulation</td>
+</tr>
+<tr>
+<td><strong>Tagged DFA</strong></td>
+<td>DFA with capture group tracking via registers and prefix trees</td>
 </tr>
 </tbody>
 </table>
@@ -975,10 +1101,9 @@
    <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">parser</span><span class="o">.</span><span class="n">compile</span><span class="p">()</span>
 </code></pre></div></p>
 </li>
-<li><code>SchemaCompiler.compile()</code> generates schema string.</li>
-<li>Schema passed to C++ <code>ReaderParser</code>.</li>
+<li><strong>C++ backend:</strong> <code>SchemaCompiler.compile()</code> generates a schema string, which is passed to the C++ <code>ReaderParser</code> to build a DFA.</li>
 <li>
-<p>C++ builds DFA for efficient matching.</p>
+<p><strong>Rust backend:</strong> <code>RustBackend</code> creates a Rust <code>Schema</code> via FFI, adds rules individually, then constructs a <code>Lexer</code> (which builds the tagged DFA internally).</p>
 </li>
 <li>
 <p><strong>Parsing</strong>
@@ -986,10 +1111,9 @@
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span>
 </code></pre></div></p>
 </li>
-<li>Input streamed to C++ engine.</li>
-<li>DFA matches patterns in single pass.</li>
+<li><strong>C++ backend:</strong> Input streamed to C++ engine; DFA matches patterns in a single pass; <code>LogEvent</code> objects returned directly.</li>
 <li>
-<p><code>LogEvent</code> objects returned with extracted data.</p>
+<p><strong>Rust backend:</strong> Input passed to Rust lexer via FFI; lexer returns fragments (matched regions with captures); <code>RustBackend</code> reconstructs <code>LogEvent</code> objects in Python, assembling log types and grouping fragments into events.</p>
 </li>
 <li>
 <p><strong>Export (Optional)</strong>
@@ -1000,13 +1124,25 @@
 <li>Exports to pandas DataFrame or PyArrow Table.</li>
 </ol>
 <h2 id="design-decisions">Design Decisions<a class="headerlink" href="#design-decisions" title="Permanent link">&para;</a></h2>
-<h3 id="why-c-ffi-instead-of-pure-python">Why C++ FFI instead of pure Python?<a class="headerlink" href="#why-c-ffi-instead-of-pure-python" title="Permanent link">&para;</a></h3>
-<p>The C++ log-surgeon library provides a DFA-based parsing engine that matches all patterns in a single pass. Wrapping this via FFI preserves these performance characteristics while providing a Pythonic API. A pure Python re-implementation would require reimplementing the DFA engine, which would be slower and duplicate effort.</p>
+<h3 id="why-ffi-instead-of-pure-python">Why FFI instead of pure Python?<a class="headerlink" href="#why-ffi-instead-of-pure-python" title="Permanent link">&para;</a></h3>
+<p>Both the C++ and Rust libraries provide DFA-based parsing engines that match all patterns in a single pass. Wrapping these via FFI preserves performance characteristics while providing a Pythonic API. A pure Python re-implementation would require reimplementing the DFA engine, which would be slower and duplicate effort.</p>
+<h3 id="why-two-backends">Why two backends?<a class="headerlink" href="#why-two-backends" title="Permanent link">&para;</a></h3>
+<p>The C++ backend is the original, mature implementation. The Rust backend (log-mechanic) is a newer implementation that offers memory safety guarantees and is under active development. Both share the same Python API, allowing users to switch between them transparently.</p>
+<h3 id="how-is-the-rust-library-distributed">How is the Rust library distributed?<a class="headerlink" href="#how-is-the-rust-library-distributed" title="Permanent link">&para;</a></h3>
+<p>The <code>liblog_mechanic</code> shared library is built from source during the wheel build process using Cargo
+and bundled directly inside the wheel. The build system handles platform differences automatically:</p>
+<ul>
+<li><strong>Linux glibc</strong>: native <code>cargo build --release</code></li>
+<li><strong>Linux musl</strong>: cross-compiled with the appropriate musl target</li>
+<li><strong>macOS</strong>: universal2 fat binary via <code>lipo</code> (both arm64 and x86_64)</li>
+</ul>
+<p>At runtime, <code>_rust_ffi.py</code> discovers the bundled library from the package directory without any
+user configuration.</p>
 <h3 id="why-a-two-phase-compileparse-api">Why a two-phase compile/parse API?<a class="headerlink" href="#why-a-two-phase-compileparse-api" title="Permanent link">&para;</a></h3>
-<p>The <code>compile()</code> step converts Python regex patterns into a log-surgeon schema string and initializes the C++ DFA. This separation:
+<p>The <code>compile()</code> step builds the DFA from regex patterns. This separation:
 - Validates patterns before parsing begins.
 - Allows the DFA to be built once and reused across multiple parse calls.
-- Mirrors the underlying C++ API structure.</p>
+- Mirrors the underlying native library API structure.</p>
 
 
 

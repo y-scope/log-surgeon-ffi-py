@@ -2149,6 +2149,33 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -3886,7 +3913,7 @@
 
 
 <h3 id="log_surgeon.Parser" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">Parser</span><span class="p">(</span><span class="n">delimiters</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39; </span><span class="se">\\</span><span class="s1">t</span><span class="se">\\</span><span class="s1">r</span><span class="se">\\</span><span class="s1">n:,!;%@/()[]&#39;</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">Parser</span><span class="p">(</span><span class="n">delimiters</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39; </span><span class="se">\\</span><span class="s1">t</span><span class="se">\\</span><span class="s1">r</span><span class="se">\\</span><span class="s1">n:,!;%@/()[]&#39;</span><span class="p">,</span> <span class="n">backend</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#log_surgeon.Parser" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -3985,6 +4012,26 @@ Default: <code>" \t\r\n:,!;%@/()[]"</code> (space, tab, newline, and common punc
                   <code>&#39; \\t\\r\\n:,!;%@/()[]&#39;</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>backend</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Backend engine to use for parsing. Either "cpp" (uses the
+C++ log-surgeon library) or "rust" (uses the Rust log-mechanic
+library via cffi). If not specified, reads from the
+<code>LOG_SURGEON_BACKEND</code> environment variable, defaulting to
+"cpp".</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
         <h5 id="log_surgeon.Parser--note">Note<a class="headerlink" href="#log_surgeon.Parser--note" title="Permanent link">&para;</a></h5>
@@ -4001,6 +4048,9 @@ first space. To match an IP address, use explicit character classes:
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Minimal delimiters for maximum token length</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">(</span><span class="n">delimiters</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot; \t\r\n&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Use Rust backend</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rust&quot;</span><span class="p">)</span>
 </code></pre></div>
 
 
@@ -4125,7 +4175,7 @@ Default is 0.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Parser(delimiters: str = ' \\t\\r\\n:,!;%@/()[]') (log_surgeon.parser.Parser)" href="#log_surgeon.Parser">Parser</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Parser(delimiters: str = ' \\t\\r\\n:,!;%@/()[]', backend: str | None = None) (log_surgeon.parser.Parser)" href="#log_surgeon.Parser">Parser</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -4271,7 +4321,7 @@ Should match the complete timestamp format used in your logs.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Parser(delimiters: str = ' \\t\\r\\n:,!;%@/()[]') (log_surgeon.parser.Parser)" href="#log_surgeon.Parser">Parser</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Parser(delimiters: str = ' \\t\\r\\n:,!;%@/()[]', backend: str | None = None) (log_surgeon.parser.Parser)" href="#log_surgeon.Parser">Parser</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -4292,7 +4342,7 @@ event.</p>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_timestamp</span><span class="p">(</span><span class="s2">&quot;iso8601&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;\d</span><span class="si">{4}</span><span class="s2">-\d</span><span class="si">{2}</span><span class="s2">-\d</span><span class="si">{2}</span><span class="s2">T\d</span><span class="si">{2}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Common log format: 15/Jan/2024:10:30:00</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_timestamp</span><span class="p">(</span><span class="s2">&quot;clf&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;\d</span><span class="si">{2}</span><span class="s2">/\w</span><span class="si">{3}</span><span class="s2">/\d</span><span class="si">{4}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_timestamp</span><span class="p">(</span><span class="s2">&quot;clf&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;\d</span><span class="si">{2}</span><span class="s2">/[a-zA-Z]</span><span class="si">{3}</span><span class="s2">/\d</span><span class="si">{4}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Unix timestamp: 1705312200</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_timestamp</span><span class="p">(</span><span class="s2">&quot;unix&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;\d</span><span class="si">{10}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -4385,7 +4435,7 @@ a new Parser instance if you need different patterns.</p>
 <h6 id="log_surgeon.Parser.compile--example">Example<a class="headerlink" href="#log_surgeon.Parser.compile--example" title="Permanent link">&para;</a></h6>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">()</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;metric&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;value=(?&lt;value&gt;\d+)&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;status=(?&lt;status&gt;\w+)&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;status=(?&lt;status&gt;[a-zA-Z0-9_]+)&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Compile once all patterns are defined</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">parser</span><span class="o">.</span><span class="n">compile</span><span class="p">()</span>
@@ -5041,7 +5091,7 @@ unwrapped to scalar values.</p>
 when iterating over potentially multi-value captures.</p>
 <h6 id="log_surgeon.LogEvent.get_capture_group--example">Example<a class="headerlink" href="#log_surgeon.LogEvent.get_capture_group--example" title="Permanent link">&para;</a></h6>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Pattern that matches multiple times</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;errors&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;error: (?&lt;error&gt;\w+)&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;errors&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;error: (?&lt;error&gt;[a-zA-Z0-9_]+)&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">event</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_event</span><span class="p">(</span><span class="s2">&quot;error: timeout error: disconnect&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Default: single values unwrapped, multiple values as list</span>
@@ -5433,7 +5483,7 @@ process log data. The parser must be compiled before use.</p>
                 <code>parser</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Parser(delimiters: str = ' \\t\\r\\n:,!;%@/()[]') (log_surgeon.parser.Parser)" href="#log_surgeon.Parser">Parser</a> | <a class="autorefs autorefs-internal" title="JsonParser(parser: Parser) (log_surgeon.json_parser.JsonParser)" href="#log_surgeon.JsonParser">JsonParser</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Parser(delimiters: str = ' \\t\\r\\n:,!;%@/()[]', backend: str | None = None) (log_surgeon.parser.Parser)" href="#log_surgeon.Parser">Parser</a> | <a class="autorefs autorefs-internal" title="JsonParser(parser: Parser) (log_surgeon.json_parser.JsonParser)" href="#log_surgeon.JsonParser">JsonParser</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -6350,7 +6400,7 @@ booleans, nested objects, arrays) are skipped unless they contain strings.</p>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Step 1: Create and configure underlying parser</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">()</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;user_info&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;user=(?&lt;user_id&gt;\d+)&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;action=(?&lt;action&gt;\w+)&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">parser</span><span class="o">.</span><span class="n">add_var</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;action=(?&lt;action&gt;[a-zA-Z0-9_]+)&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">parser</span><span class="o">.</span><span class="n">compile</span><span class="p">()</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Step 2: Create JSON parser with field targeting</span>
@@ -6396,7 +6446,7 @@ to JSON string fields. By default, extracts from all string fields.</p>
                 <code>parser</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Parser(delimiters: str = ' \\t\\r\\n:,!;%@/()[]') (log_surgeon.parser.Parser)" href="#log_surgeon.Parser">Parser</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Parser(delimiters: str = ' \\t\\r\\n:,!;%@/()[]', backend: str | None = None) (log_surgeon.parser.Parser)" href="#log_surgeon.Parser">Parser</a></code>
             </td>
             <td>
               <div class="doc-md-description">

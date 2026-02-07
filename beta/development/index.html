@@ -16,6 +16,8 @@
         <link rel="prev" href="../architecture/">
       
       
+        <link rel="next" href="../changelog/">
+      
       
         
       
@@ -503,6 +505,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rust-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust backend
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rust backend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-the-rust-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the Rust backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#development-overriding-the-library-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development: overriding the library path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-rust-side-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Rust-side tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#linting-and-type-checking" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -517,6 +569,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -592,6 +671,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rust-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust backend
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rust backend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-the-rust-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the Rust backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#development-overriding-the-library-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development: overriding the library path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-rust-side-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Rust-side tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#linting-and-type-checking" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -626,13 +755,18 @@
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Python 3.9+</strong></li>
-<li><strong>C++20 compatible compiler</strong></li>
+<li><strong>C++20 compatible compiler</strong><ul>
 <li>Linux: GCC 10+ or Clang 10+</li>
 <li>macOS: Xcode 14+ (install with <code>xcode-select --install</code>)</li>
-<li><strong>CMake 3.15+</strong></li>
+</ul>
+</li>
+<li><strong>CMake 3.15+</strong><ul>
 <li>Linux: <code>apt install cmake</code> or <code>dnf install cmake</code></li>
 <li>macOS: <code>brew install cmake</code> or included with Xcode</li>
 </ul>
+</li>
+</ul>
+<p>The Rust toolchain is installed automatically by the build system if not already present.</p>
 <h2 id="building-from-source">Building from source<a class="headerlink" href="#building-from-source" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Clone the repository with submodules</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>git<span class="w"> </span>clone<span class="w"> </span>--recursive<span class="w"> </span>https://github.com/y-scope/log-surgeon-ffi-py.git
@@ -642,12 +776,19 @@
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>sh<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>curl<span class="w"> </span>-sSL<span class="w"> </span>https://taskfile.dev/install.sh<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>--<span class="w"> </span>-d
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&quot;</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Install C++ dependencies (log-surgeon, fmt, Microsoft.GSL)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Install all dependencies (C++ and Rust)</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>task<span class="w"> </span>deps:install-all
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># Install in editable mode for development</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </code></pre></div>
+<p><code>task deps:install-all</code> handles everything automatically:</p>
+<ul>
+<li>Downloads and builds C++ dependencies (log-surgeon, fmt, Microsoft.GSL)</li>
+<li>Downloads the Rust log-mechanic source</li>
+<li>Installs the Rust nightly toolchain (via rustup) if needed</li>
+<li>Builds <code>liblog_mechanic.so</code> (Linux) or <code>liblog_mechanic.dylib</code> (macOS)</li>
+</ul>
 <h2 id="building-a-wheel">Building a wheel<a class="headerlink" href="#building-a-wheel" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build a wheel for your current Python version</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pip<span class="w"> </span>wheel<span class="w"> </span>.<span class="w"> </span>--no-deps<span class="w"> </span>-w<span class="w"> </span>dist/
@@ -655,6 +796,8 @@
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># The wheel will be in dist/</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>ls<span class="w"> </span>dist/*.whl
 </code></pre></div>
+<p>The wheel bundles both the C++ extension module and the Rust <code>liblog_mechanic</code> shared library.
+No extra installation steps or environment variables are needed by end users.</p>
 <p>To build wheels matching CI output (using cibuildwheel):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Install cibuildwheel</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span>cibuildwheel
@@ -671,18 +814,47 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Install test dependencies</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pip<span class="w"> </span>install<span class="w"> </span>pytest
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Run tests</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Run all tests with the default (C++) backend</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Run all tests with the Rust backend</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="nv">LOG_SURGEON_BACKEND</span><span class="o">=</span>rust<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/
+</code></pre></div>
+<h2 id="rust-backend">Rust backend<a class="headerlink" href="#rust-backend" title="Permanent link">&para;</a></h2>
+<p>The Rust backend (<code>liblog_mechanic</code>) is built and bundled automatically by the build system.
+When installed from a wheel, no additional setup is required.</p>
+<h3 id="using-the-rust-backend">Using the Rust backend<a class="headerlink" href="#using-the-rust-backend" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Via constructor parameter</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rust&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Via environment variable (applies to all Parser instances)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># export LOG_SURGEON_BACKEND=rust</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="development-overriding-the-library-path">Development: overriding the library path<a class="headerlink" href="#development-overriding-the-library-path" title="Permanent link">&para;</a></h3>
+<p>During development, if you want to use a locally built version of <code>liblog_mechanic</code> instead of
+the bundled one, set the <code>LOG_MECHANIC_LIB_PATH</code> environment variable:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">LOG_MECHANIC_LIB_PATH</span><span class="o">=</span>/path/to/log-surgeon/rust/target/release/liblog_mechanic.so
+</code></pre></div>
+<p>The library discovery order is:</p>
+<ol>
+<li><code>LOG_MECHANIC_LIB_PATH</code> env var (exact path override)</li>
+<li>Bundled in the installed package directory (wheel installs)</li>
+<li>Project layout fallbacks (submodule, sibling repo, cwd — for editable installs)</li>
+</ol>
+<h3 id="running-rust-side-tests">Running Rust-side tests<a class="headerlink" href="#running-rust-side-tests" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>log-surgeon/rust
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cargo<span class="w"> </span><span class="nb">test</span>
 </code></pre></div>
 <h2 id="linting-and-type-checking">Linting and type checking<a class="headerlink" href="#linting-and-type-checking" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Install dev dependencies</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>pip<span class="w"> </span>install<span class="w"> </span>ruff<span class="w"> </span>mypy
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Run linter</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>ruff<span class="w"> </span>check<span class="w"> </span>src/
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Run type checker</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>mypy<span class="w"> </span>src/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Install dev dependencies</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>pip<span class="w"> </span>install<span class="w"> </span>ruff<span class="w"> </span>mypy
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Run linter</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>ruff<span class="w"> </span>check<span class="w"> </span>src/
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Run type checker</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>mypy<span class="w"> </span>src/
 </code></pre></div>
 
 
