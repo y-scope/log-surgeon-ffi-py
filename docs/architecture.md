@@ -4,7 +4,7 @@ This document describes the internal architecture of `log-surgeon-ffi`.
 
 ## Overview
 
-`log-surgeon-ffi` is a Python wrapper around the high-performance C++ [`log-surgeon`](https://github.com/y-scope/log-surgeon) library. The architecture follows a layered design with a clear FFI (Foreign Function Interface) boundary.
+`log-surgeon-ffi` is a Python wrapper around the high-performance [`log-surgeon`](https://github.com/y-scope/log-surgeon) library. It supports two backend engines (C++ and Rust) behind a unified Python API. The architecture follows a layered design with clear FFI (Foreign Function Interface) boundaries.
 
 ```mermaid
 flowchart TB
@@ -25,13 +25,23 @@ flowchart TB
         Variable["Variable"]
     end
 
-    subgraph FFI["FFI Bridge (C++ Extension)"]
+    subgraph CppFFI["C++ FFI Bridge (pybind11)"]
         PyReaderParser["PyReaderParser"]
     end
 
     subgraph CPP["C++ Library"]
-        ReaderParser["log_surgeon::ReaderParser"]
-        DFA["DFA Engine"]
+        CppReaderParser["log_surgeon::ReaderParser"]
+        CppDFA["DFA Engine"]
+    end
+
+    subgraph RustFFI["Rust FFI Bridge (cffi)"]
+        RustBackend["RustBackend"]
+        RustFFIBindings["_rust_ffi (cffi/dlopen)"]
+    end
+
+    subgraph Rust["Rust Library (log-mechanic)"]
+        RustLexer["Lexer"]
+        RustDFA["Tagged DFA Engine"]
     end
 
     App --> Parser
@@ -40,6 +50,7 @@ flowchart TB
 
     Parser --> SchemaCompiler
     Parser --> PyReaderParser
+    Parser --> RustBackend
     Parser --> PATTERN
     SchemaCompiler --> Variable
 
@@ -49,8 +60,13 @@ flowchart TB
     Query --> JsonParser
 
     PyReaderParser --> LogEvent
-    PyReaderParser --> ReaderParser
-    ReaderParser --> DFA
+    PyReaderParser --> CppReaderParser
+    CppReaderParser --> CppDFA
+
+    RustBackend --> LogEvent
+    RustBackend --> RustFFIBindings
+    RustFFIBindings --> RustLexer
+    RustLexer --> RustDFA
 ```
 
 ## Component Layers
@@ -76,22 +92,38 @@ Supporting classes that power the API:
 | **PATTERN** | Pre-built regex patterns for common log elements (IP, UUID, etc.) |
 | **Variable** | Data class representing a schema variable definition |
 
-### 3. FFI Bridge
+### 3. FFI Bridges
 
-The C++ extension module that bridges Python and C++:
+Two backend engines are available, selected via `Parser(backend=...)` or the `LOG_SURGEON_BACKEND` environment variable:
+
+**C++ Backend** (default) — pybind11 extension module:
 
 | Component | Purpose |
 |-----------|---------|
 | **PyReaderParser** | Python wrapper around `log_surgeon::ReaderParser` |
 
-### 4. C++ Library
+**Rust Backend** — cffi ABI mode (dlopen):
 
-The core parsing engine from [log-surgeon](https://github.com/y-scope/log-surgeon):
+| Component | Purpose |
+|-----------|---------|
+| **RustBackend** | Bridges Rust lexer fragments to LogEvent objects; supports context manager protocol |
+| **_rust_ffi** | cffi bindings (dlopen) for the `liblog_mechanic` shared library (bundled in wheel) |
+
+### 4. Native Libraries
+
+**C++ Library** — [log-surgeon](https://github.com/y-scope/log-surgeon):
 
 | Component | Purpose |
 |-----------|---------|
 | **ReaderParser** | Stream-based log parser with DFA matching |
 | **DFA Engine** | Deterministic finite automaton for efficient pattern matching |
+
+**Rust Library** — log-mechanic (in the log-surgeon repo under `rust/`):
+
+| Component | Purpose |
+|-----------|---------|
+| **Lexer** | Fragment-based lexer using tagged DFA simulation |
+| **Tagged DFA** | DFA with capture group tracking via registers and prefix trees |
 
 ## Data Flow
 
@@ -142,18 +174,16 @@ flowchart LR
    ```python
    parser.compile()
    ```
-   - `SchemaCompiler.compile()` generates schema string.
-   - Schema passed to C++ `ReaderParser`.
-   - C++ builds DFA for efficient matching.
+   - **C++ backend:** `SchemaCompiler.compile()` generates a schema string, which is passed to the C++ `ReaderParser` to build a DFA.
+   - **Rust backend:** `RustBackend` creates a Rust `Schema` via FFI, adds rules individually, then constructs a `Lexer` (which builds the tagged DFA internally).
 
 3. **Parsing**
    ```python
    for event in parser.parse(log_file):
        print(event["value"])
    ```
-   - Input streamed to C++ engine.
-   - DFA matches patterns in single pass.
-   - `LogEvent` objects returned with extracted data.
+   - **C++ backend:** Input streamed to C++ engine; DFA matches patterns in a single pass; `LogEvent` objects returned directly.
+   - **Rust backend:** Input passed to Rust lexer via FFI; lexer returns fragments (matched regions with captures); `RustBackend` reconstructs `LogEvent` objects in Python, assembling log types and grouping fragments into events.
 
 4. **Export (Optional)**
    ```python
@@ -164,13 +194,29 @@ flowchart LR
 
 ## Design Decisions
 
-### Why C++ FFI instead of pure Python?
+### Why FFI instead of pure Python?
 
-The C++ log-surgeon library provides a DFA-based parsing engine that matches all patterns in a single pass. Wrapping this via FFI preserves these performance characteristics while providing a Pythonic API. A pure Python re-implementation would require reimplementing the DFA engine, which would be slower and duplicate effort.
+Both the C++ and Rust libraries provide DFA-based parsing engines that match all patterns in a single pass. Wrapping these via FFI preserves performance characteristics while providing a Pythonic API. A pure Python re-implementation would require reimplementing the DFA engine, which would be slower and duplicate effort.
+
+### Why two backends?
+
+The C++ backend is the original, mature implementation. The Rust backend (log-mechanic) is a newer implementation that offers memory safety guarantees and is under active development. Both share the same Python API, allowing users to switch between them transparently.
+
+### How is the Rust library distributed?
+
+The `liblog_mechanic` shared library is built from source during the wheel build process using Cargo
+and bundled directly inside the wheel. The build system handles platform differences automatically:
+
+- **Linux glibc**: native `cargo build --release`
+- **Linux musl**: cross-compiled with the appropriate musl target
+- **macOS**: universal2 fat binary via `lipo` (both arm64 and x86_64)
+
+At runtime, `_rust_ffi.py` discovers the bundled library from the package directory without any
+user configuration.
 
 ### Why a two-phase compile/parse API?
 
-The `compile()` step converts Python regex patterns into a log-surgeon schema string and initializes the C++ DFA. This separation:
+The `compile()` step builds the DFA from regex patterns. This separation:
 - Validates patterns before parsing begins.
 - Allows the DFA to be built once and reused across multiple parse calls.
-- Mirrors the underlying C++ API structure.
+- Mirrors the underlying native library API structure.

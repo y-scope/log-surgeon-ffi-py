@@ -74,7 +74,7 @@ parser.compile()
 Use `(?<name>pattern)` syntax to extract fields:
 
 ```python
-parser.add_var("metric", rf"metric=(?<metric_name>\w+) value=(?<value>\d+)")
+parser.add_var("metric", rf"metric=(?<metric_name>[a-zA-Z0-9_]+) value=(?<value>\d+)")
 
 event = parser.parse_event("metric=cpu value=42")
 print(event['metric_name'])  # "cpu"
@@ -134,6 +134,47 @@ parser.add_var("metrics", rf"value=(?<val>{PATTERN.FLOAT})")
 parser.compile()
 ```
 
+### Backend selection
+
+`log-surgeon-ffi` supports two backend engines: C++ (default) and Rust. Both are bundled in
+the wheel and require no extra installation. Select via the `backend` parameter or the
+`LOG_SURGEON_BACKEND` environment variable:
+
+```python
+# Via parameter
+parser = Parser(backend="rust")
+
+# Via environment variable (default: "cpp")
+# export LOG_SURGEON_BACKEND=rust
+parser = Parser()
+```
+
+Both backends share the same Python API. The Rust backend is under active development and
+may have minor behavioral differences noted below.
+
+### Supported regex syntax
+
+log-surgeon uses its own regex dialect, which is a subset of standard regex. The supported
+escape sequences differ between backends:
+
+| Escape | Meaning | C++ | Rust |
+|--------|---------|-----|------|
+| `\d` | `[0-9]` | Native | Translated in Python |
+| `\s` | `[ \t\r\n]` | Native | Translated in Python |
+| `\w` | `[a-zA-Z0-9_]` | **Not supported** | Translated in Python |
+| `\n` `\r` `\t` | Newline, carriage return, tab | Native | Native |
+
+!!! tip
+    For maximum portability across backends, use explicit character classes:
+    `[0-9]` instead of `\d`, `[a-zA-Z0-9_]` instead of `\w`.
+
+The Rust backend automatically translates `\d`, `\w`, and `\s` (and their negated uppercase
+forms `\D`, `\W`, `\S`) to their equivalent character classes before passing patterns to the
+engine.
+
+Features **not supported** by either backend: lookahead, lookbehind, backreferences, `\b`
+(word boundaries), non-greedy quantifiers (`*?`, `+?`).
+
 ---
 
 ## Common Pitfalls
@@ -146,3 +187,6 @@ parser.compile()
 
 **Escape sequence errors**
 - Use raw f-strings (`rf"..."`) instead of regular strings to avoid double-escaping issues.
+
+**`\w` crashes the C++ backend**
+- The C++ backend does not support `\w`. Use `[a-zA-Z0-9_]` instead for cross-backend compatibility. The Rust backend translates `\w` automatically.

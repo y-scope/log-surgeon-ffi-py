@@ -62,6 +62,7 @@ nav:
   - API Reference: api-reference.md
   - Architecture: architecture.md
   - Development: development.md
+  - Changelog: changelog.md
 
 extra:
   version:

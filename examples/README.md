@@ -14,14 +14,11 @@ python examples/filtering_events.py
 python examples/json_log_parsing.py
 ```
 
-Or from the project root:
+To run with the Rust backend instead of the default C++ backend, set the
+`LOG_SURGEON_BACKEND` environment variable:
 
 ```bash
-python -m examples.basic_parsing
-python -m examples.multiple_capture_groups
-python -m examples.export_to_dataframe
-python -m examples.filtering_events
-python -m examples.json_log_parsing
+LOG_SURGEON_BACKEND=rust python examples/basic_parsing.py
 ```
 
 ## Examples

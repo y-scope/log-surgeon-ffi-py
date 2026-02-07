@@ -14,7 +14,8 @@
 ## Overview
 
 `log-surgeon-ffi` provides Python bindings for [`log-surgeon`](https://github.com/y-scope/log-surgeon),
-a high-performance C++ library for extracting structured data from unstructured logs.
+a high-performance library for extracting structured data from unstructured logs. It supports both
+C++ and Rust backend engines.
 
 ### Why `log-surgeon`?
 
@@ -123,16 +124,28 @@ See [`examples/`](examples/) for runnable scripts:
 
 ---
 
-## Roadmap
+## Backend Engines
 
-A Rust re-implementation of the core parsing engine is in development, which will bring:
+`log-surgeon-ffi` supports two backend engines:
 
-- Improved performance through Rust's zero-cost abstractions.
-- Memory safety guarantees without garbage collection overhead.
-- Enhanced features including additional regex capabilities.
-- Simplified builds with easier cross-platform compilation via PyO3.
+| Backend | Description |
+|---------|-------------|
+| **C++** (default) | The original [log-surgeon](https://github.com/y-scope/log-surgeon) C++ library via pybind11. |
+| **Rust** | The [log-mechanic](https://github.com/y-scope/log-surgeon) Rust implementation via cffi. |
 
-The Python API will remain stable—only the underlying engine will change.
+Select a backend via the `backend` parameter or the `LOG_SURGEON_BACKEND` environment variable:
+
+```python
+# Via constructor parameter
+parser = Parser(backend="rust")
+
+# Via environment variable (applies to all Parser instances)
+# export LOG_SURGEON_BACKEND=rust
+parser = Parser()  # Uses Rust backend
+```
+
+Both backends share the same Python API. The Rust backend is under active development and
+may have minor behavioral differences—see [Key Concepts](https://y-scope.github.io/log-surgeon-ffi-py/beta/key-concepts/) for details.
 
 ---
 
