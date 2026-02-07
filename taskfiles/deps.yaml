@@ -146,7 +146,8 @@ tasks:
               *)       echo "Unsupported musl architecture: $ARCH"; exit 1 ;;
             esac
             rustup target add "$RUST_TARGET"
-            cargo build --release --target "$RUST_TARGET"
+            RUSTFLAGS="-C target-feature=-crt-static" \
+              cargo build --release --target "$RUST_TARGET"
             cp "target/$RUST_TARGET/release/liblog_mechanic.so" \
               "{{.G_LOG_MECHANIC_INSTALL_DIR}}/liblog_mechanic.so"
           else
