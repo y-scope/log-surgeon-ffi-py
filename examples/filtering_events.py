@@ -16,16 +16,15 @@ from log_surgeon import Parser, Query
 
 # Step 1: Create parser with extraction patterns
 parser = Parser()
-parser.add_var("metric", rf"metric=(?<metric_name>\w+) value=(?<value>\d+)")
+parser.add_var("metric", rf"metric=(?<metric_name>[a-zA-Z0-9_]+) value=(?<value>\d+)")
 parser.compile()
 
 # Sample log data with varying values
-log_data = """
+log_data = """\
 2024-01-01 INFO: metric=cpu value=42
 2024-01-01 INFO: metric=memory value=100
 2024-01-01 INFO: metric=disk value=7
-2024-01-01 INFO: metric=cpu value=85
-"""
+2024-01-01 INFO: metric=cpu value=85"""
 
 # Step 2: Build query with a filter
 #

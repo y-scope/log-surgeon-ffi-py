@@ -31,8 +31,8 @@ def basic_example():
     # Step 1: Create the underlying parser with extraction patterns
     parser = Parser()
     parser.add_var("user_info", rf"user=(?<user_id>\d+)")
-    parser.add_var("request_id", rf"id=(?<request_id>\w+)")
-    parser.add_var("job_status", rf"status=(?<status>\w+)")
+    parser.add_var("request_id", rf"id=(?<request_id>[a-zA-Z0-9_]+)")
+    parser.add_var("job_status", rf"status=(?<status>[a-zA-Z0-9_]+)")
     parser.compile()
 
     # Step 2: Create JsonParser and configure which fields to parse
@@ -135,7 +135,7 @@ def json_array_example():
 
     parser = Parser()
     parser.add_var("user_info", rf"user=(?<user_id>\d+)")
-    parser.add_var("action", rf"action=(?<action>\w+)")
+    parser.add_var("action", rf"action=(?<action>[a-zA-Z0-9_]+)")
     parser.compile()
 
     json_parser = JsonParser(parser).target_fields(["message"])
@@ -157,7 +157,7 @@ def query_integration_example():
 
     parser = Parser()
     parser.add_var("user_info", rf"user=(?<user_id>\d+)")
-    parser.add_var("job_status", rf"status=(?<status>\w+)")
+    parser.add_var("job_status", rf"status=(?<status>[a-zA-Z0-9_]+)")
     parser.compile()
 
     json_parser = JsonParser(parser).target_fields(["message"])
@@ -220,7 +220,7 @@ def include_log_type_example():
 
     parser = Parser()
     parser.add_var("user_info", rf"user=(?<user_id>\d+)")
-    parser.add_var("action", rf"action=(?<action>\w+)")
+    parser.add_var("action", rf"action=(?<action>[a-zA-Z0-9_]+)")
     parser.compile()
 
     json_parser = JsonParser(parser).target_fields(["message"]).include_log_type(True)

@@ -117,7 +117,7 @@ class PATTERN:
     - 0-99: [1-9]{0,1}[0-9]
     """
 
-    IPV4 = rf"(({IP_OCTET})\.){{3}}{IP_OCTET}"
+    IPV4 = rf"(({IP_OCTET})\.){{3}}({IP_OCTET})"
     """
     Pattern for IPv4 addresses.
 

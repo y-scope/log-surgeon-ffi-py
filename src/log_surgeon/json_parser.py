@@ -153,7 +153,7 @@ class JsonParser:
     # Step 1: Create and configure underlying parser
     parser = Parser()
     parser.add_var("user_info", r"user=(?<user_id>\d+)")
-    parser.add_var("action", r"action=(?<action>\w+)")
+    parser.add_var("action", r"action=(?<action>[a-zA-Z0-9_]+)")
     parser.compile()
 
     # Step 2: Create JSON parser with field targeting

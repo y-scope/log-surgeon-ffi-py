@@ -30,15 +30,21 @@ Query : For exporting parsed events to DataFrames.
 from __future__ import annotations
 
 import io
+import os
 from typing import BinaryIO, TextIO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    from log_surgeon._rust_backend import RustBackend
     from log_surgeon.log_event import LogEvent
 
 from log_surgeon.schema_compiler import SchemaCompiler
-from log_surgeon_ffi import ReaderParser  # type: ignore[attr-defined]
+
+try:
+    from log_surgeon_ffi import ReaderParser  # type: ignore[attr-defined]
+except ImportError:
+    ReaderParser = None  # type: ignore[assignment, misc]
 
 _PARSER_NOT_INITIALIZED_ERROR = (
     "Parser not initialized. Load a log surgeon schema using load_schema() or compile()"
@@ -108,7 +114,9 @@ class Parser:
     PATTERN : Pre-built regex patterns for common log elements.
     """
 
-    def __init__(self, delimiters: str = r" \t\r\n:,!;%@/()[]") -> None:
+    def __init__(
+        self, delimiters: str = r" \t\r\n:,!;%@/()[]", backend: str | None = None
+    ) -> None:
         r"""
         Initialize the parser with optional custom delimiters.
 
@@ -125,6 +133,12 @@ class Parser:
                 - Remove `:` to match timestamps like "10:30:00" as single tokens
                 - Remove `/` to match file paths as single tokens
                 - Add `=` to treat key=value pairs as separate tokens
+
+            backend: Backend engine to use for parsing. Either "cpp" (uses the
+                C++ log-surgeon library) or "rust" (uses the Rust log-mechanic
+                library via cffi). If not specified, reads from the
+                ``LOG_SURGEON_BACKEND`` environment variable, defaulting to
+                "cpp".
 
         Note
         ----
@@ -144,10 +158,20 @@ class Parser:
 
         # Minimal delimiters for maximum token length
         parser = Parser(delimiters=r" \t\r\n")
+
+        # Use Rust backend
+        parser = Parser(backend="rust")
         ```
 
         """
-        self._parser: ReaderParser | None = None
+        if backend is None:
+            backend = os.environ.get("LOG_SURGEON_BACKEND", "cpp")
+        if backend not in ("cpp", "rust"):
+            msg = f"backend must be 'cpp' or 'rust', got '{backend}'"
+            raise ValueError(msg)
+        self._backend = backend
+        self._parser: ReaderParser | None = None  # type: ignore[annotation-unchecked]
+        self._rust_backend: RustBackend | None = None
         self._schema_compiler: SchemaCompiler = SchemaCompiler(delimiters)
         self._enable_debug = False
 
@@ -241,7 +265,7 @@ class Parser:
         parser.add_timestamp("iso8601", r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
 
         # Common log format: 15/Jan/2024:10:30:00
-        parser.add_timestamp("clf", r"\d{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}")
+        parser.add_timestamp("clf", r"\d{2}/[a-zA-Z]{3}/\d{4}:\d{2}:\d{2}:\d{2}")
 
         # Unix timestamp: 1705312200
         parser.add_timestamp("unix", r"\d{10}")
@@ -282,7 +306,7 @@ class Parser:
         ```python
         parser = Parser()
         parser.add_var("metric", r"value=(?<value>\d+)")
-        parser.add_var("status", r"status=(?<status>\w+)")
+        parser.add_var("status", r"status=(?<status>[a-zA-Z0-9_]+)")
 
         # Compile once all patterns are defined
         parser.compile()
@@ -293,11 +317,23 @@ class Parser:
         ```
 
         """
-        self._parser = ReaderParser(
-            io.BytesIO(),
-            self._schema_compiler.compile(),
-            enable_debug_logs,
-        )
+        if self._backend == "rust":
+            from log_surgeon._rust_backend import RustBackend  # noqa: PLC0415
+
+            self._rust_backend = RustBackend(self._schema_compiler, enable_debug_logs)
+        else:
+            if ReaderParser is None:
+                msg = (
+                    "C++ backend (log_surgeon_ffi) is not installed. "
+                    "Install with: pip install log-surgeon-ffi, "
+                    "or use backend='rust'."
+                )
+                raise ImportError(msg)
+            self._parser = ReaderParser(
+                io.BytesIO(),
+                self._schema_compiler.compile(),
+                enable_debug_logs,
+            )
 
     def parse_event(self, payload: str) -> LogEvent | None:
         r"""
@@ -401,33 +437,37 @@ class Parser:
         """
         self._ensure_initialized()
 
-        # Validate and convert source type
-        input_stream: io.StringIO | io.BytesIO
-        if isinstance(source, str):
-            input_stream = io.StringIO(source)
-        elif isinstance(source, (io.StringIO, io.BytesIO)):
-            input_stream = source
-        elif hasattr(source, "read"):
-            # Handle file objects (TextIO or BinaryIO)
-            content = source.read()
-            if isinstance(content, bytes):
-                input_stream = io.BytesIO(content)
-            elif isinstance(content, str):
-                input_stream = io.StringIO(content)
-            else:
-                msg = f"File object returned unsupported type {type(content).__name__}"
-                raise TypeError(msg)
+        if self._backend == "rust":
+            text = self._read_source_as_string(source)
+            assert self._rust_backend is not None
+            yield from self._rust_backend.parse(text)
         else:
-            msg = (
-                f"Input must be str, file object, io.StringIO, or io.BytesIO, "
-                f"got {type(source).__name__}"
-            )
-            raise TypeError(msg)
+            # C++ backend path
+            input_stream: io.StringIO | io.BytesIO
+            if isinstance(source, str):
+                input_stream = io.StringIO(source)
+            elif isinstance(source, (io.StringIO, io.BytesIO)):
+                input_stream = source
+            elif hasattr(source, "read"):
+                content = source.read()
+                if isinstance(content, bytes):
+                    input_stream = io.BytesIO(content)
+                elif isinstance(content, str):
+                    input_stream = io.StringIO(content)
+                else:
+                    msg = f"File object returned unsupported type {type(content).__name__}"
+                    raise TypeError(msg)
+            else:
+                msg = (
+                    f"Input must be str, file object, io.StringIO, or io.BytesIO, "
+                    f"got {type(source).__name__}"
+                )
+                raise TypeError(msg)
 
-        assert self._parser is not None
-        self._parser.reset_input_stream(input_stream)
-        while (event := self._parser.parse_next_log_event()) is not None:
-            yield event
+            assert self._parser is not None
+            self._parser.reset_input_stream(input_stream)
+            while (event := self._parser.parse_next_log_event()) is not None:
+                yield event
 
     def get_vars(self) -> set[str]:
         r"""
@@ -461,6 +501,29 @@ class Parser:
         """
         return self._schema_compiler.get_all_capture_group_names()
 
+    @staticmethod
+    def _read_source_as_string(source: str | TextIO | BinaryIO | io.StringIO | io.BytesIO) -> str:
+        """Convert any supported source type to a string."""
+        if isinstance(source, str):
+            return source
+        if isinstance(source, io.StringIO):
+            return source.read()
+        if isinstance(source, io.BytesIO):
+            return source.read().decode("utf-8")
+        if hasattr(source, "read"):
+            content = source.read()
+            if isinstance(content, bytes):
+                return content.decode("utf-8")
+            if isinstance(content, str):
+                return content
+            msg = f"File object returned unsupported type {type(content).__name__}"
+            raise TypeError(msg)
+        msg = (
+            f"Input must be str, file object, io.StringIO, or io.BytesIO, "
+            f"got {type(source).__name__}"
+        )
+        raise TypeError(msg)
+
     def _ensure_initialized(self) -> None:
         """
         Ensure the parser has been initialized with a schema.
@@ -469,5 +532,5 @@ class Parser:
             RuntimeError: If parser is not initialized
 
         """
-        if self._parser is None:
+        if self._parser is None and self._rust_backend is None:
             raise RuntimeError(_PARSER_NOT_INITIALIZED_ERROR)

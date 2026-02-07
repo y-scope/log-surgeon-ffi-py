@@ -101,7 +101,7 @@ event = parser.parse_event(log_line)
 
 # Display results
 print("=== Extracted Fields ===")
-print(f"timestamp: {event['timestamp']}")
+print(f"timestamp: {event['firstTimestamp']}")
 print(f"level: {event['level']}")
 print(f"spark_host: {event['spark_host']}")
 print(f"system_ip: {event['system_ip']}")

@@ -217,7 +217,7 @@ class LogEvent:
         -------
         ```python
         # Pattern that matches multiple times
-        parser.add_var("errors", r"error: (?<error>\w+)")
+        parser.add_var("errors", r"error: (?<error>[a-zA-Z0-9_]+)")
         event = parser.parse_event("error: timeout error: disconnect")
 
         # Default: single values unwrapped, multiple values as list

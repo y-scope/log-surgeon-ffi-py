@@ -18,22 +18,21 @@ from log_surgeon import Parser, Query
 parser = Parser()
 
 # Pattern breakdown:
-#   metric=(?<metric_name>\w+)  - Capture word characters after "metric=" as "metric_name"
-#   value=(?<value>\d+)        - Capture digits after "value=" as "value"
+#   metric=(?<metric_name>[a-zA-Z0-9_]+)  - Capture word characters after "metric=" as "metric_name"
+#   value=(?<value>\d+)                   - Capture digits after "value=" as "value"
 #
-# \w+ matches one or more "word characters" (letters, digits, underscore)
+# [a-zA-Z0-9_]+ matches one or more "word characters" (letters, digits, underscore)
 # \d+ matches one or more digits
-parser.add_var("metric", rf"metric=(?<metric_name>\w+) value=(?<value>\d+)")
+parser.add_var("metric", rf"metric=(?<metric_name>[a-zA-Z0-9_]+) value=(?<value>\d+)")
 
 # Compile is required before parsing
 parser.compile()
 
 # Sample log data (multi-line string)
-log_data = """
+log_data = """\
 2024-01-01 INFO: metric=cpu value=42
 2024-01-01 INFO: metric=memory value=100
-2024-01-01 INFO: metric=disk value=7
-"""
+2024-01-01 INFO: metric=disk value=7"""
 
 # Step 2: Build a query using the fluent API
 #
