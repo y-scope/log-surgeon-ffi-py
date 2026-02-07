@@ -82,4 +82,17 @@ target_compile_features(log_surgeon_ffi PRIVATE cxx_std_20)
 
 if(SKBUILD)
     install(TARGETS log_surgeon_ffi LIBRARY DESTINATION ".")
+
+    # Bundle Rust log-mechanic shared library into log_surgeon/ package dir
+    set(RUST_LIB_DIR "${CMAKE_SOURCE_DIR}/build/deps/log-mechanic-install")
+    if(APPLE)
+        set(RUST_LIB_NAME "liblog_mechanic.dylib")
+    else()
+        set(RUST_LIB_NAME "liblog_mechanic.so")
+    endif()
+    if(EXISTS "${RUST_LIB_DIR}/${RUST_LIB_NAME}")
+        install(FILES "${RUST_LIB_DIR}/${RUST_LIB_NAME}" DESTINATION "log_surgeon")
+    else()
+        message(WARNING "Rust library not found at ${RUST_LIB_DIR}/${RUST_LIB_NAME}")
+    endif()
 endif()

@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 keywords = ["logging", "log-parsing", "log-analysis", "structured-data", "performance", "observability"]
 dependencies = [
+    "cffi>=1.15.0",
     "pandas>=2.0.0",
     "pyarrow>=14.0.0",
 ]
@@ -25,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: C++",
+    "Programming Language :: Rust",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Logging",
     "Topic :: System :: Monitoring",
@@ -74,7 +76,7 @@ musllinux-s390x-image = "musllinux_1_2"
 musllinux-x86_64-image = "musllinux_1_2"
 
 build-verbosity = 1
-before-build = """
+before-all = """
   sh -c "$(curl -sSL https://taskfile.dev/install.sh)" -- -d
   export PATH="$PWD/bin:$PATH"
   task deps:install-all

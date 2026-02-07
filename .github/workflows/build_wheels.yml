@@ -99,6 +99,13 @@ jobs:
         with:
           submodules: "recursive"
 
+      - name: "Install Rust toolchain"
+        if: "runner.os == 'macOS'"
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
       - name: "Build wheels"
         uses: "pypa/cibuildwheel@v2.21"
         env:

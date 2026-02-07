@@ -15,6 +15,9 @@ vars:
   G_FMT_CMAKE_NAME: "fmt"
   G_GSL_CMAKE_NAME: "Microsoft.GSL"
 
+  G_LOG_MECHANIC_SRC_DIR: "{{.G_DEPS_DIR}}/log-mechanic-src"
+  G_LOG_MECHANIC_INSTALL_DIR: "{{.G_DEPS_DIR}}/log-mechanic-install"
+
 tasks:
   install-all:
     run: "once"
@@ -29,6 +32,7 @@ tasks:
     run: "once"
     deps:
       - "log-surgeon"
+      - "log-mechanic-build"
 
   log-surgeon:
     internal: true
@@ -86,3 +90,68 @@ tasks:
           TAR_SHA256: "f0e32cb10654fea91ad56bde89170d78cfbf4363ee0b01d8f097de2ba49f6ce9"
           TAR_URL: "https://github.com/microsoft/GSL/archive/refs/tags/v4.0.0.tar.gz"
           WORK_DIR: "{{.G_DEPS_DIR}}"
+
+  log-mechanic:
+    internal: true
+    run: "once"
+    cmds:
+      - task: "utils:remote:download-and-extract-tar"
+        vars:
+          FILE_SHA256: "c5772d0bf7176e4c5792bb3b65c3e790bffe82d249bc359a1f55f34818500681"
+          OUTPUT_DIR: "{{.G_LOG_MECHANIC_SRC_DIR}}"
+          URL: "https://github.com/jackluo923/log-surgeon/archive/ac9061a.tar.gz"
+
+  log-mechanic-build:
+    internal: true
+    run: "once"
+    deps:
+      - "log-mechanic"
+    vars:
+      RUST_SRC_DIR: "{{.G_LOG_MECHANIC_SRC_DIR}}/rust"
+    cmds:
+      # Install rustup non-interactively if missing
+      - |-
+        if ! command -v rustup &> /dev/null; then
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain none
+          . "$HOME/.cargo/env"
+        fi
+      # rustup show auto-installs the nightly toolchain from rust-toolchain.toml
+      - |-
+        . "$HOME/.cargo/env" 2>/dev/null || true
+        cd "{{.RUST_SRC_DIR}}"
+        rustup show
+      # Platform-aware cargo build
+      - |-
+        . "$HOME/.cargo/env" 2>/dev/null || true
+        cd "{{.RUST_SRC_DIR}}"
+        mkdir -p "{{.G_LOG_MECHANIC_INSTALL_DIR}}"
+
+        if [ "$(uname)" = "Darwin" ]; then
+          # macOS: build for both architectures and create universal2 binary
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          lipo -create \
+            target/aarch64-apple-darwin/release/liblog_mechanic.dylib \
+            target/x86_64-apple-darwin/release/liblog_mechanic.dylib \
+            -output "{{.G_LOG_MECHANIC_INSTALL_DIR}}/liblog_mechanic.dylib"
+        else
+          # Linux: detect musl vs glibc
+          if ldd --version 2>&1 | grep -qi musl; then
+            ARCH="$(uname -m)"
+            case "$ARCH" in
+              x86_64)  RUST_TARGET="x86_64-unknown-linux-musl" ;;
+              aarch64) RUST_TARGET="aarch64-unknown-linux-musl" ;;
+              *)       echo "Unsupported musl architecture: $ARCH"; exit 1 ;;
+            esac
+            rustup target add "$RUST_TARGET"
+            cargo build --release --target "$RUST_TARGET"
+            cp "target/$RUST_TARGET/release/liblog_mechanic.so" \
+              "{{.G_LOG_MECHANIC_INSTALL_DIR}}/liblog_mechanic.so"
+          else
+            cargo build --release
+            cp target/release/liblog_mechanic.so \
+              "{{.G_LOG_MECHANIC_INSTALL_DIR}}/liblog_mechanic.so"
+          fi
+        fi
