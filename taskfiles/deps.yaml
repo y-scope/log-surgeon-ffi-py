@@ -137,22 +137,9 @@ tasks:
             target/x86_64-apple-darwin/release/liblog_mechanic.dylib \
             -output "{{.G_LOG_MECHANIC_INSTALL_DIR}}/liblog_mechanic.dylib"
         else
-          # Linux: detect musl vs glibc
-          if ldd --version 2>&1 | grep -qi musl; then
-            ARCH="$(uname -m)"
-            case "$ARCH" in
-              x86_64)  RUST_TARGET="x86_64-unknown-linux-musl" ;;
-              aarch64) RUST_TARGET="aarch64-unknown-linux-musl" ;;
-              *)       echo "Unsupported musl architecture: $ARCH"; exit 1 ;;
-            esac
-            rustup target add "$RUST_TARGET"
-            RUSTFLAGS="-C target-feature=-crt-static" \
-              cargo build --release --target "$RUST_TARGET"
-            cp "target/$RUST_TARGET/release/liblog_mechanic.so" \
-              "{{.G_LOG_MECHANIC_INSTALL_DIR}}/liblog_mechanic.so"
-          else
-            cargo build --release
-            cp target/release/liblog_mechanic.so \
-              "{{.G_LOG_MECHANIC_INSTALL_DIR}}/liblog_mechanic.so"
-          fi
+          # Linux: native build works for both glibc and musl containers.
+          # -crt-static is a no-op on glibc and enables cdylib on musl.
+          RUSTFLAGS="-C target-feature=-crt-static" cargo build --release
+          cp target/release/liblog_mechanic.so \
+            "{{.G_LOG_MECHANIC_INSTALL_DIR}}/liblog_mechanic.so"
         fi
