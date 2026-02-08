@@ -568,6 +568,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#why-is-the-rust-backend-slower-in-benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why is the Rust backend slower in benchmarks?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#how-is-the-rust-library-distributed" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -810,6 +821,17 @@
     <span class="md-ellipsis">
       
         Why two backends?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-is-the-rust-backend-slower-in-benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why is the Rust backend slower in benchmarks?
       
     </span>
   </a>
@@ -1128,6 +1150,16 @@
 <p>Both the C++ and Rust libraries provide DFA-based parsing engines that match all patterns in a single pass. Wrapping these via FFI preserves performance characteristics while providing a Pythonic API. A pure Python re-implementation would require reimplementing the DFA engine, which would be slower and duplicate effort.</p>
 <h3 id="why-two-backends">Why two backends?<a class="headerlink" href="#why-two-backends" title="Permanent link">&para;</a></h3>
 <p>The C++ backend is the original, mature implementation. The Rust backend (log-mechanic) is a newer implementation that offers memory safety guarantees and is under active development. Both share the same Python API, allowing users to switch between them transparently.</p>
+<h3 id="why-is-the-rust-backend-slower-in-benchmarks">Why is the Rust backend slower in benchmarks?<a class="headerlink" href="#why-is-the-rust-backend-slower-in-benchmarks" title="Permanent link">&para;</a></h3>
+<p>The top two reasons:</p>
+<ol>
+<li>
+<p><strong>Where the work runs.</strong> The C++ library does full parsing and event assembly in native code and returns one complete <code>LogEvent</code> per <code>parse_next_log_event()</code> call. The Rust FFI exposes a <strong>lexer</strong> that returns <strong>fragments</strong> (one per regex match). The Python layer then groups fragments into events, builds log types, and constructs <code>LogEvent</code> in Python. So the Rust path does more work in Python and more per-event work outside the native library.</p>
+</li>
+<li>
+<p><strong>FFI round-trips per event.</strong> The C++ path does one pybind11 call per event. The Rust path does one cffi call per <strong>fragment</strong> (often several per line) plus per-capture reads when copying data, so there are many more cross-boundary calls per event.</p>
+</li>
+</ol>
 <h3 id="how-is-the-rust-library-distributed">How is the Rust library distributed?<a class="headerlink" href="#how-is-the-rust-library-distributed" title="Permanent link">&para;</a></h3>
 <p>The <code>liblog_mechanic</code> shared library is built from source during the wheel build process using Cargo
 and bundled directly inside the wheel. The build system handles platform differences automatically:</p>

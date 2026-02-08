@@ -536,6 +536,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#010-beta10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.0-beta.10]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.0-beta.10]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#010-beta9" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -631,6 +670,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#010-beta10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.0-beta.10]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.0-beta.10]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#010-beta9" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -704,6 +782,17 @@
 <ul>
 <li><strong><code>[project.optional-dependencies] rust</code> extra.</strong> The <code>cffi</code> dependency moved to required
   dependencies, so <code>pip install log-surgeon-ffi[rust]</code> is no longer needed.</li>
+</ul>
+<hr />
+<h2 id="010-beta10">[0.1.0-beta.10]<a class="headerlink" href="#010-beta10" title="Permanent link">&para;</a></h2>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Rust backend: streaming parse.</strong> <code>RustBackend.parse()</code> now streams one fragment at a time instead of collecting all fragments for the entire input before yielding events. Memory usage is O(current event) instead of O(entire input), so long-running or repeated parsing no longer grows unbounded.</li>
+</ul>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Backend performance tests</strong> (<code>tests/test_backend_performance.py</code>). Compare C++ vs Rust throughput: <code>parse_event</code> (duration-based) and <code>parse</code> stream (fixed iterations). Optional RSS monitoring to stop early if memory grows. Correctness checks ensure both backends produce equivalent results.</li>
+<li><strong>Documentation: why C++ is faster in benchmarks.</strong> README and Architecture doc now describe the top two reasons: (1) C++ does full parse and event assembly in native code and returns one event per call; Rust exposes a fragment-level lexer and event assembly is done in Python. (2) Rust incurs more FFI round-trips per event (one per fragment and per capture) than C++ (one call per event).</li>
 </ul>
 <hr />
 <h2 id="010-beta9">[0.1.0-beta.9]<a class="headerlink" href="#010-beta9" title="Permanent link">&para;</a></h2>
