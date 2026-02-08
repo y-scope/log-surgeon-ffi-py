@@ -154,145 +154,74 @@ class RustBackend:
     def __exit__(self, *exc: object) -> None:
         self.close()
 
-    def _collect_fragments(
-        self,
-        input_bytes: bytes,
-    ) -> list[FragmentData]:
-        """
-        Lex all fragments from input, collecting captures for each match.
+    def _copy_fragment(self, fragment: object, input_base: int) -> FragmentData:
+        """Copy one fragment from the lexer (capture pointers are invalidated on next call)."""
+        start_offset = int(ffi.cast("uintptr_t", fragment.start)) - input_base
+        end_offset = int(ffi.cast("uintptr_t", fragment.end)) - input_base
+        captures: list[tuple[str, str, int, int]] = []
+        for i in range(fragment.captures_count):
+            cap = fragment.captures[i]
+            cap_name = read_string_view(cap.name)
+            cap_lexeme = read_string_view(cap.lexeme)
+            cap_start = int(ffi.cast("uintptr_t", cap.lexeme.pointer)) - input_base
+            cap_end = cap_start + cap.lexeme.length
+            if cap_name in self._timestamp_rule_names:
+                captures.append(("firstTimestamp", cap_lexeme, cap_start, cap_end))
+            elif cap_name in self._rule_names:
+                continue
+            else:
+                captures.append((cap_name, cap_lexeme, cap_start, cap_end))
+        return (start_offset, end_offset, bool(fragment.is_event_start), captures)
 
-        Each call to ``next_fragment`` invalidates the previous fragment's
-        capture pointers, so we must copy everything eagerly.
-        """
+    def parse(self, text: str) -> Generator[LogEvent, None, None]:
+        """Parse text and yield LogEvent objects. Streams one fragment at a time so
+        memory stays O(current event) instead of O(entire input)."""
+        input_bytes = text.encode("utf-8")
+        if not input_bytes:
+            yield self._build_event(input_bytes, 0, 0, [])
+            return
+
         input_sv = make_string_view(input_bytes)
         input_buf = ffi.from_buffer("const uint8_t[]", input_bytes)
         input_base = int(ffi.cast("uintptr_t", input_buf))
         pos = ffi.new("size_t *", 0)
+        use_timestamp_boundaries = len(self._timestamp_rule_names) > 0
 
-        fragments: list[FragmentData] = []
+        current_frags: list[FragmentData] = []
+        event_start_byte = 0
+
         while True:
             fragment = lib.clp_log_mechanic_lexer_next_fragment(self._lexer, input_sv, pos)
             if fragment.rule == 0:
                 break
 
-            start_offset = int(ffi.cast("uintptr_t", fragment.start)) - input_base
-            end_offset = int(ffi.cast("uintptr_t", fragment.end)) - input_base
+            frag_data = self._copy_fragment(fragment, input_base)
+            start_offset, end_offset, is_event_start, captures = frag_data
 
-            captures: list[tuple[str, str, int, int]] = []
-            for i in range(fragment.captures_count):
-                cap = fragment.captures[i]
-                cap_name = read_string_view(cap.name)
-                cap_lexeme = read_string_view(cap.lexeme)
-                cap_start = int(ffi.cast("uintptr_t", cap.lexeme.pointer)) - input_base
-                cap_end = cap_start + cap.lexeme.length
-                if cap_name in self._timestamp_rule_names:
-                    captures.append(("firstTimestamp", cap_lexeme, cap_start, cap_end))
-                elif cap_name in self._rule_names:
-                    continue
-                else:
-                    captures.append((cap_name, cap_lexeme, cap_start, cap_end))
-
-            fragments.append(
-                (
-                    start_offset,
-                    end_offset,
-                    bool(fragment.is_event_start),
-                    captures,
-                )
-            )
-
-        return fragments
-
-    def parse(self, text: str) -> Generator[LogEvent, None, None]:
-        """Parse text and yield LogEvent objects."""
-        input_bytes = text.encode("utf-8")
-        fragments_data = self._collect_fragments(input_bytes)
-
-        # Find event boundary indices (positions where is_event_start == True)
-        boundary_indices = [i for i, (_, _, is_start, _) in enumerate(fragments_data) if is_start]
-
-        if not boundary_indices:
-            # No timestamp boundaries: split by lines (one event per line),
-            # matching the C++ backend behavior.
-            yield from self._split_by_lines(input_bytes, fragments_data)
-            return
-
-        # Split fragments into groups at boundaries
-        groups: list[tuple[int, int, list[FragmentData]]] = []
-
-        # Preamble: any text/fragments before the first timestamp boundary
-        first_boundary_match_start = fragments_data[boundary_indices[0]][0]
-        first_boundary_line_start = self._find_line_start(input_bytes, first_boundary_match_start)
-        if first_boundary_line_start > 0 or boundary_indices[0] > 0:
-            preamble_frags = fragments_data[: boundary_indices[0]]
-            groups.append((0, first_boundary_line_start, preamble_frags))
-
-        # Each boundary group: from boundary[i] to boundary[i+1] (or end)
-        for idx, boundary_pos in enumerate(boundary_indices):
-            frag_start = boundary_pos
-            frag_end = (
-                boundary_indices[idx + 1]
-                if idx + 1 < len(boundary_indices)
-                else len(fragments_data)
-            )
-            group_frags = fragments_data[frag_start:frag_end]
-
-            # Event byte range: from the start of the line containing this boundary's
-            # match to the start of the line containing the next boundary's match
-            # (or end of input for the last group).
-            event_start_byte = self._find_line_start(input_bytes, fragments_data[boundary_pos][0])
-            if idx + 1 < len(boundary_indices):
-                next_boundary_match_start = fragments_data[boundary_indices[idx + 1]][0]
-                event_end_byte = self._find_line_start(input_bytes, next_boundary_match_start)
+            if use_timestamp_boundaries:
+                if is_event_start and current_frags:
+                    event_end_byte = self._find_line_start(input_bytes, start_offset)
+                    yield self._build_event(
+                        input_bytes, event_start_byte, event_end_byte, current_frags
+                    )
+                    event_start_byte = event_end_byte
+                    current_frags = []
             else:
-                event_end_byte = len(input_bytes)
+                line_start = self._find_line_start(input_bytes, start_offset)
+                if line_start != event_start_byte and current_frags:
+                    event_end_byte = line_start
+                    yield self._build_event(
+                        input_bytes, event_start_byte, event_end_byte, current_frags
+                    )
+                    event_start_byte = line_start
+                    current_frags = []
 
-            groups.append((event_start_byte, event_end_byte, group_frags))
+            current_frags.append((start_offset, end_offset, is_event_start, captures))
 
-        for event_start, event_end, group_frags in groups:
-            if not group_frags and event_start == event_end:
-                continue
-            yield self._build_event(input_bytes, event_start, event_end, group_frags)
-
-    @staticmethod
-    def _split_by_lines(
-        input_bytes: bytes,
-        fragments: list[FragmentData],
-    ) -> Generator[LogEvent, None, None]:
-        """Split fragments by newlines, yielding one event per line."""
-        if not input_bytes:
-            yield RustBackend._build_event(input_bytes, 0, 0, [])
-            return
-
-        # Find all newline positions to determine line boundaries
-        line_starts: list[int] = [0]
-        for i, b in enumerate(input_bytes):
-            if b == ord("\n"):
-                line_starts.append(i + 1)
-
-        # Assign each fragment to the line it starts on
-        frag_idx = 0
-        for line_idx in range(len(line_starts)):
-            line_start = line_starts[line_idx]
-            line_end = (
-                line_starts[line_idx + 1] if line_idx + 1 < len(line_starts) else len(input_bytes)
+        if current_frags:
+            yield self._build_event(
+                input_bytes, event_start_byte, len(input_bytes), current_frags
             )
-            if line_start >= len(input_bytes):
-                break
-
-            # Collect fragments whose match_start falls within this line
-            line_frags: list[FragmentData] = []
-            while frag_idx < len(fragments):
-                match_start = fragments[frag_idx][0]
-                if match_start >= line_end:
-                    break
-                line_frags.append(fragments[frag_idx])
-                frag_idx += 1
-
-            # Skip blank lines (whitespace-only) that have no matched fragments
-            if not line_frags and not input_bytes[line_start:line_end].strip():
-                continue
-            yield RustBackend._build_event(input_bytes, line_start, line_end, line_frags)
 
     @staticmethod
     def _find_line_start(input_bytes: bytes, offset: int) -> int:

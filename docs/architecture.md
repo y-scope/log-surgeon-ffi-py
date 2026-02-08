@@ -202,6 +202,14 @@ Both the C++ and Rust libraries provide DFA-based parsing engines that match all
 
 The C++ backend is the original, mature implementation. The Rust backend (log-mechanic) is a newer implementation that offers memory safety guarantees and is under active development. Both share the same Python API, allowing users to switch between them transparently.
 
+### Why is the Rust backend slower in benchmarks?
+
+The top two reasons:
+
+1. **Where the work runs.** The C++ library does full parsing and event assembly in native code and returns one complete `LogEvent` per `parse_next_log_event()` call. The Rust FFI exposes a **lexer** that returns **fragments** (one per regex match). The Python layer then groups fragments into events, builds log types, and constructs `LogEvent` in Python. So the Rust path does more work in Python and more per-event work outside the native library.
+
+2. **FFI round-trips per event.** The C++ path does one pybind11 call per event. The Rust path does one cffi call per **fragment** (often several per line) plus per-capture reads when copying data, so there are many more cross-boundary calls per event.
+
 ### How is the Rust library distributed?
 
 The `liblog_mechanic` shared library is built from source during the wheel build process using Cargo

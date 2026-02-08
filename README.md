@@ -147,6 +147,9 @@ parser = Parser()  # Uses Rust backend
 Both backends share the same Python API. The Rust backend is under active development and
 may have minor behavioral differences—see [Key Concepts](https://y-scope.github.io/log-surgeon-ffi-py/beta/key-concepts/) for details.
 
+**Performance:** In benchmarks the C++ backend is typically faster. The main reasons:
+(1) the C++ library returns a complete event per call with parsing and event assembly done in native code, while the Rust path exposes a fragment-level lexer and does event assembly and string building in Python; (2) the Rust path incurs more FFI round-trips per event (one per fragment and per capture) than the C++ path (one call per event). See [Architecture](https://y-scope.github.io/log-surgeon-ffi-py/beta/architecture/) for details.
+
 ---
 
 ## License
