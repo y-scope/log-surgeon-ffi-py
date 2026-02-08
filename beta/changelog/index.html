@@ -486,15 +486,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
+  <a href="#010-beta10" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [Unreleased]
+        [0.1.0-beta.10]
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="[Unreleased]">
+    <nav class="md-nav" aria-label="[0.1.0-beta.10]">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -532,56 +532,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#010-beta10" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        [0.1.0-beta.10]
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="[0.1.0-beta.10]">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Changed
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#added_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Added
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#010-beta9" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        [0.1.0-beta.9]
-      
-    </span>
-  </a>
   
 </li>
       
@@ -620,15 +570,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
+  <a href="#010-beta10" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [Unreleased]
+        [0.1.0-beta.10]
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="[Unreleased]">
+    <nav class="md-nav" aria-label="[0.1.0-beta.10]">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -669,56 +619,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#010-beta10" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        [0.1.0-beta.10]
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="[0.1.0-beta.10]">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Changed
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#added_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Added
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#010-beta9" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        [0.1.0-beta.9]
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -743,67 +643,26 @@
 <p>All notable changes to <code>log-surgeon-ffi</code> are documented in this file.</p>
 <p>The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>.</p>
 <hr />
-<h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="010-beta10">[0.1.0-beta.10]<a class="headerlink" href="#010-beta10" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Rust backend bundled in wheels.</strong> The <code>liblog_mechanic</code> shared library is now compiled from
-  source during the wheel build and installed inside the <code>log_surgeon/</code> package directory. Users
-  no longer need to build the Rust library manually or set <code>LOG_MECHANIC_LIB_PATH</code>. Switching to
-  the Rust backend is as simple as <code>Parser(backend="rust")</code>.</li>
-<li><strong><code>cffi</code> is now a required dependency</strong> (previously optional under <code>[rust]</code> extra). This ensures
-  the Rust backend is available out of the box.</li>
-<li><strong><code>RustBackend</code> supports the context manager protocol</strong> (<code>with</code> statement). Resources are
-  released automatically on exit.</li>
-<li><strong><code>taskfiles/deps.yaml</code>: <code>log-mechanic</code> and <code>log-mechanic-build</code> tasks.</strong> The build system
-  downloads the Rust source, installs the Rust toolchain (via rustup) if needed, and builds
-  <code>liblog_mechanic</code> with platform-aware logic:<ul>
-<li>Linux glibc: native <code>cargo build --release</code></li>
-<li>Linux musl: cross-compiled with the appropriate musl target</li>
-<li>macOS: universal2 fat binary via <code>lipo</code> (arm64 + x86_64)</li>
-</ul>
-</li>
-<li><strong><code>CMakeLists.txt</code>: Rust library install rule.</strong> The built <code>.so</code>/<code>.dylib</code> is installed into the
-  <code>log_surgeon/</code> package directory inside the wheel.</li>
-<li><strong>CI: Rust toolchain on macOS runners.</strong> The GitHub Actions workflow installs Rust on macOS
-  before <code>cibuildwheel</code> runs. Linux builds install Rust inside the container via the taskfile.</li>
-<li><strong><code>"Programming Language :: Rust"</code> classifier</strong> added to <code>pyproject.toml</code>.</li>
+<li><strong>Rust backend.</strong> C++ remains the default; Rust backend is available via <code>Parser(backend="rust")</code> or the <code>LOG_SURGEON_BACKEND=rust</code> environment variable. The <code>liblog_mechanic</code> shared library is compiled during the wheel build and installed inside the <code>log_surgeon/</code> package directory, so no manual build or <code>LOG_MECHANIC_LIB_PATH</code> is required.</li>
+<li><strong><code>cffi</code> is now a required dependency</strong> (previously optional under <code>[rust]</code> extra). Rust backend is available out of the box.</li>
+<li><strong><code>RustBackend</code> context manager.</strong> Resources are released automatically when using <code>with</code> statement.</li>
+<li><strong>Build: Rust in wheels.</strong> <code>taskfiles/deps.yaml</code> adds <code>log-mechanic</code> and <code>log-mechanic-build</code> tasks (download Rust source, install toolchain via rustup if needed, build with platform-aware logic: Linux glibc/musl, macOS universal2). <code>CMakeLists.txt</code> installs the built <code>.so</code>/<code>.dylib</code> into the package directory. CI installs Rust toolchain on macOS runners and in Linux containers.</li>
+<li><strong><code>"Programming Language :: Rust"</code> classifier</strong> in <code>pyproject.toml</code>.</li>
+<li><strong>Backend performance tests</strong> (<code>tests/test_backend_performance.py</code>). Compare C++ vs Rust throughput: <code>parse_event</code> (duration-based) and <code>parse</code> stream (fixed iterations). Optional RSS monitoring to stop early if memory grows. Correctness checks ensure both backends produce equivalent results.</li>
+<li><strong>Documentation: why C++ is faster in benchmarks.</strong> README and Architecture doc describe the top two reasons: (1) C++ does full parse and event assembly in native code and returns one event per call; Rust exposes a fragment-level lexer and event assembly is done in Python. (2) Rust incurs more FFI round-trips per event than C++ (one call per event).</li>
 </ul>
 <h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><code>pyproject.toml</code>: <code>before-build</code> replaced with <code>before-all</code>.</strong> Dependencies (both C++ and
-  Rust) are Python-version-independent and now build once per platform container instead of once
-  per Python version.</li>
-<li><strong><code>_rust_ffi.py</code>: library discovery prioritizes bundled library.</strong> Search order is now:
-  (1) <code>LOG_MECHANIC_LIB_PATH</code> env var, (2) package directory (bundled in wheel),
-  (3) project layout fallbacks (dev mode).</li>
-<li><strong><code>_rust_backend.py</code>: merged duplicate <code>TYPE_CHECKING</code> import blocks.</strong></li>
+<li><strong>Rust backend: streaming parse.</strong> <code>RustBackend.parse()</code> now streams one fragment at a time instead of collecting all fragments for the entire input before yielding events. Memory usage is O(current event) instead of O(entire input), so long-running or repeated parsing no longer grows unbounded.</li>
+<li><strong><code>pyproject.toml</code>: <code>before-build</code> replaced with <code>before-all</code>.</strong> C++ and Rust dependencies build once per platform container instead of once per Python version.</li>
+<li><strong><code>_rust_ffi.py</code>: library discovery.</strong> Search order is (1) <code>LOG_MECHANIC_LIB_PATH</code> env var, (2) package directory (bundled in wheel), (3) project layout fallbacks for development.</li>
 </ul>
 <h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><code>[project.optional-dependencies] rust</code> extra.</strong> The <code>cffi</code> dependency moved to required
-  dependencies, so <code>pip install log-surgeon-ffi[rust]</code> is no longer needed.</li>
-</ul>
-<hr />
-<h2 id="010-beta10">[0.1.0-beta.10]<a class="headerlink" href="#010-beta10" title="Permanent link">&para;</a></h2>
-<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Rust backend: streaming parse.</strong> <code>RustBackend.parse()</code> now streams one fragment at a time instead of collecting all fragments for the entire input before yielding events. Memory usage is O(current event) instead of O(entire input), so long-running or repeated parsing no longer grows unbounded.</li>
-</ul>
-<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Backend performance tests</strong> (<code>tests/test_backend_performance.py</code>). Compare C++ vs Rust throughput: <code>parse_event</code> (duration-based) and <code>parse</code> stream (fixed iterations). Optional RSS monitoring to stop early if memory grows. Correctness checks ensure both backends produce equivalent results.</li>
-<li><strong>Documentation: why C++ is faster in benchmarks.</strong> README and Architecture doc now describe the top two reasons: (1) C++ does full parse and event assembly in native code and returns one event per call; Rust exposes a fragment-level lexer and event assembly is done in Python. (2) Rust incurs more FFI round-trips per event (one per fragment and per capture) than C++ (one call per event).</li>
-</ul>
-<hr />
-<h2 id="010-beta9">[0.1.0-beta.9]<a class="headerlink" href="#010-beta9" title="Permanent link">&para;</a></h2>
-<p>Initial beta release with C++ and Rust backend support.</p>
-<ul>
-<li>C++ backend via pybind11 extension module (default)</li>
-<li>Rust backend via cffi/dlopen (requires manual library build)</li>
-<li>Parser, JsonParser, Query API</li>
-<li>PATTERN constants for common log elements</li>
-<li>pandas DataFrame and PyArrow Table export</li>
-<li>Multi-line event support (timestamps, stack traces)</li>
+<li><strong><code>[project.optional-dependencies] rust</code> extra.</strong> <code>cffi</code> is now a required dependency; <code>pip install log-surgeon-ffi[rust]</code> is no longer needed.</li>
 </ul>
 
 
